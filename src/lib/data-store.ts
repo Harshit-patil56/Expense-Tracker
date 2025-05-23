@@ -4,17 +4,51 @@
 
 import type { Expense, BudgetGoal } from './constants';
 
-const EXPENSES_KEY = 'fiscalCompassExpenses';
-const BUDGETS_KEY = 'fiscalCompassBudgets';
-const USER_INFO_KEY = 'fiscalCompassUserInfo';
-const SETUP_COMPLETE_KEY = 'fiscalCompassSetupComplete';
+// Base keys (will be prefixed per user)
+const EXPENSES_KEY_BASE = 'fiscalCompassExpenses';
+const BUDGETS_KEY_BASE = 'fiscalCompassBudgets';
+const USER_INFO_KEY_BASE = 'fiscalCompassUserInfo';
+const SETUP_COMPLETE_KEY_BASE = 'fiscalCompassSetupComplete';
+
+// Global key to store the identifier of the currently active user
+const ACTIVE_USER_ID_KEY = 'fiscalCompassActiveUserId';
 
 export interface UserInfo {
   name: string;
   email: string;
-  currency?: string;
-  totalIncome?: number;
+  currency: string; // Now required
+  totalIncome: number; // Now required
 }
+
+// Helper to sanitize strings for use in localStorage keys
+const sanitizeForKey = (str: string): string => {
+  return str.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+};
+
+// Generates a unique prefix for a user based on name and email
+const generateUserPrefix = (name: string, email: string): string => {
+  const saneName = sanitizeForKey(name);
+  const saneEmail = sanitizeForKey(email);
+  return `user_${saneName}_${saneEmail}`;
+};
+
+// Retrieves the prefix for the currently active user
+let memoizedActiveUserPrefix: string | null = undefined; // Use undefined to signify not yet fetched
+
+const getActiveUserPrefix = (): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  if (memoizedActiveUserPrefix === undefined) {
+    memoizedActiveUserPrefix = window.localStorage.getItem(ACTIVE_USER_ID_KEY);
+  }
+  return memoizedActiveUserPrefix;
+};
+
+// Call this if the active user changes (e.g., after setup or if a user switch feature is added)
+const resetMemoizedActiveUserPrefix = (): void => {
+  memoizedActiveUserPrefix = undefined;
+};
 
 // Helper to safely access localStorage
 const getLocalStorageItem = <T>(key: string, defaultValue: T): T => {
@@ -51,40 +85,81 @@ const setLocalStorageItem = <T>(key: string, value: T): void => {
 };
 
 export const loadExpenses = (): Expense[] => {
-  return getLocalStorageItem<Expense[]>(EXPENSES_KEY, []);
+  const prefix = getActiveUserPrefix();
+  if (!prefix) return [];
+  return getLocalStorageItem<Expense[]>(`${prefix}_${EXPENSES_KEY_BASE}`, []);
 };
 
 export const saveExpenses = (expenses: Expense[]): void => {
-  setLocalStorageItem(EXPENSES_KEY, expenses);
+  const prefix = getActiveUserPrefix();
+  if (!prefix) {
+    console.warn("Cannot save expenses, no active user prefix.");
+    return;
+  }
+  setLocalStorageItem(`${prefix}_${EXPENSES_KEY_BASE}`, expenses);
 };
 
 export const loadBudgets = (): BudgetGoal[] => {
-  return getLocalStorageItem<BudgetGoal[]>(BUDGETS_KEY, []);
+  const prefix = getActiveUserPrefix();
+  if (!prefix) return [];
+  return getLocalStorageItem<BudgetGoal[]>(`${prefix}_${BUDGETS_KEY_BASE}`, []);
 };
 
 export const saveBudgets = (budgets: BudgetGoal[]): void => {
-  setLocalStorageItem(BUDGETS_KEY, budgets);
+  const prefix = getActiveUserPrefix();
+  if (!prefix) {
+    console.warn("Cannot save budgets, no active user prefix.");
+    return;
+  }
+  setLocalStorageItem(`${prefix}_${BUDGETS_KEY_BASE}`, budgets);
 };
 
 export const loadUserInfo = (): UserInfo | null => {
-  const defaultUserInfo: UserInfo = { name: '', email: '', currency: 'INR', totalIncome: 0 };
-  const userInfo = getLocalStorageItem<UserInfo | null>(USER_INFO_KEY, null);
-  if (userInfo) {
-    return { ...defaultUserInfo, ...userInfo, totalIncome: userInfo.totalIncome ?? 0 };
+  const prefix = getActiveUserPrefix();
+  if (!prefix) return null;
+  
+  const storedUserInfo = getLocalStorageItem<UserInfo | null>(`${prefix}_${USER_INFO_KEY_BASE}`, null);
+  if (storedUserInfo) {
+    // Ensure default values for currency and totalIncome if they are somehow missing (though unlikely with new setup)
+    return {
+      name: storedUserInfo.name,
+      email: storedUserInfo.email,
+      currency: storedUserInfo.currency || 'INR',
+      totalIncome: storedUserInfo.totalIncome ?? 0,
+    };
   }
   return null;
 };
 
 export const saveUserInfo = (userInfo: UserInfo): void => {
-  setLocalStorageItem(USER_INFO_KEY, userInfo);
+  if (typeof window === 'undefined') return;
+
+  const userPrefix = generateUserPrefix(userInfo.name, userInfo.email);
+  setLocalStorageItem(ACTIVE_USER_ID_KEY, userPrefix);
+  setLocalStorageItem(`${userPrefix}_${USER_INFO_KEY_BASE}`, userInfo);
+  resetMemoizedActiveUserPrefix(); // Ensure the memoized prefix is updated
+  // Dispatch a storage event to notify other tabs/components about user change
+  window.dispatchEvent(new StorageEvent('storage', { key: ACTIVE_USER_ID_KEY }));
+  window.dispatchEvent(new StorageEvent('storage', { key: `${userPrefix}_${USER_INFO_KEY_BASE}` }));
 };
 
-export const hasCompletedSetup = (): boolean => {
-  return getLocalStorageItem<boolean>(SETUP_COMPLETE_KEY, false);
+export const hasActiveUserCompletedSetup = (): boolean => {
+  const prefix = getActiveUserPrefix();
+  if (!prefix) return false; // No active user means setup not complete for anyone "active"
+  return getLocalStorageItem<boolean>(`${prefix}_${SETUP_COMPLETE_KEY_BASE}`, false);
 };
 
 export const markSetupAsComplete = (): void => {
-  setLocalStorageItem(SETUP_COMPLETE_KEY, true);
+  const prefix = getActiveUserPrefix();
+  if (!prefix) {
+    console.warn("Cannot mark setup as complete, no active user prefix.");
+    return;
+  }
+  setLocalStorageItem(`${prefix}_${SETUP_COMPLETE_KEY_BASE}`, true);
+  // Dispatch storage event for setup completion
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new StorageEvent('storage', { key: `${prefix}_${SETUP_COMPLETE_KEY_BASE}` }));
+  }
 };
 
 export const getCurrencySymbol = (currencyCode: string | undefined): string => {
@@ -99,16 +174,27 @@ export const getCurrencySymbol = (currencyCode: string | undefined): string => {
     }
 };
 
-export const initializeLocalData = (): void => {
-    // This function is a placeholder if needed for future sample data features.
-};
-
 export const clearAllUserData = (): void => {
   if (typeof window === 'undefined') {
     return;
   }
-  window.localStorage.removeItem(EXPENSES_KEY);
-  window.localStorage.removeItem(BUDGETS_KEY);
-  window.localStorage.removeItem(USER_INFO_KEY);
-  window.localStorage.removeItem(SETUP_COMPLETE_KEY);
+  const prefix = getActiveUserPrefix();
+
+  if (prefix) {
+    window.localStorage.removeItem(`${prefix}_${EXPENSES_KEY_BASE}`);
+    window.localStorage.removeItem(`${prefix}_${BUDGETS_KEY_BASE}`);
+    window.localStorage.removeItem(`${prefix}_${USER_INFO_KEY_BASE}`);
+    window.localStorage.removeItem(`${prefix}_${SETUP_COMPLETE_KEY_BASE}`);
+  }
+  window.localStorage.removeItem(ACTIVE_USER_ID_KEY);
+  resetMemoizedActiveUserPrefix(); // Clear memoized prefix
+  // Dispatch storage events for data clearing
+  window.dispatchEvent(new StorageEvent('storage', { key: ACTIVE_USER_ID_KEY, oldValue: prefix, newValue: null }));
+  // Potentially dispatch events for other cleared keys too, if components listen to them specifically
 };
+
+// Call this on initial app load if needed, or after specific user-switching actions
+export const reinitializeActiveUserPrefix = (): void => {
+    resetMemoizedActiveUserPrefix();
+    getActiveUserPrefix(); // Re-fetch and memoize
+}

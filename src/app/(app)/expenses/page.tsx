@@ -5,39 +5,54 @@ import { ExpenseForm } from "@/components/features/expenses/expense-form";
 import { ExpenseTable } from "@/components/features/expenses/expense-table";
 import type { Expense } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { loadExpenses, saveExpenses } from '@/lib/data-store';
+import { loadExpenses, saveExpenses, reinitializeActiveUserPrefix } from '@/lib/data-store';
 import { useToast } from "@/hooks/use-toast";
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const { toast } = useToast();
 
-  useEffect(() => {
+  const refreshExpenses = useCallback(() => {
+    reinitializeActiveUserPrefix(); // Ensure correct user context
     setExpenses(loadExpenses());
   }, []);
 
+  useEffect(() => {
+    refreshExpenses();
+  }, [refreshExpenses]);
+
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key && (event.key.endsWith('fiscalCompassExpenses') || event.key === 'fiscalCompassActiveUserId') ) {
+        refreshExpenses();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [refreshExpenses]);
+
   const handleAddExpense = (newExpenseData: Omit<Expense, 'id'>) => {
-    setExpenses(prevExpenses => {
-      const newExpense: Expense = {
-        ...newExpenseData,
-        id: String(Date.now()), // simple unique id
-      };
-      const updatedExpenses = [newExpense, ...prevExpenses];
-      saveExpenses(updatedExpenses);
-      // No need to call refreshBudgetsWithSpentAmounts here, other pages listen to storage
-      return updatedExpenses;
-    });
+    // expenses are already loaded with user context by refreshExpenses
+    const newExpense: Expense = {
+      ...newExpenseData,
+      id: String(Date.now()), 
+    };
+    const updatedExpenses = [newExpense, ...expenses]; // Use current state expenses
+    saveExpenses(updatedExpenses); // Saves for current active user
+    setExpenses(updatedExpenses); // Update local state immediately
+    // saveExpenses will dispatch a storage event, so other components will update.
   };
 
   const handleDeleteExpense = useCallback((expenseId: string) => {
-    setExpenses(prevExpenses => {
-      const updatedExpenses = prevExpenses.filter(exp => exp.id !== expenseId);
-      saveExpenses(updatedExpenses);
-      toast({ title: "Expense Deleted", description: "The expense has been removed." });
-      // No need to call refreshBudgetsWithSpentAmounts here, other pages listen to storage
-      return updatedExpenses;
-    });
-  }, [toast]);
+    // expenses are already loaded with user context
+    const updatedExpenses = expenses.filter(exp => exp.id !== expenseId);
+    saveExpenses(updatedExpenses); // Saves for current active user
+    setExpenses(updatedExpenses); // Update local state immediately
+    toast({ title: "Expense Deleted", description: "The expense has been removed." });
+    // saveExpenses dispatches storage event
+  }, [expenses, toast]);
 
   return (
     <div className="space-y-8">

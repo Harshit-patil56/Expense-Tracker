@@ -6,7 +6,7 @@ import { OverviewCard } from "@/components/features/dashboard/overview-card";
 import { BudgetProgressCard } from "@/components/features/budgets/budget-progress-card";
 import { RecentTransactionsList } from "@/components/features/expenses/recent-transactions-list";
 import type { Expense, BudgetGoal } from "@/lib/constants";
-import { loadExpenses, loadBudgets, loadUserInfo, saveUserInfo, type UserInfo } from '@/lib/data-store';
+import { loadExpenses, loadBudgets, loadUserInfo, saveUserInfo, type UserInfo, reinitializeActiveUserPrefix } from '@/lib/data-store';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -37,6 +37,7 @@ export default function DashboardPage() {
   const [incomeToAdd, setIncomeToAdd] = useState<string>("");
 
   const refreshDashboardData = useCallback(() => {
+    reinitializeActiveUserPrefix(); // Ensure correct user context
     const loadedExpenses = loadExpenses();
     const loadedBudgets = loadBudgets();
     const loadedUserInfo = loadUserInfo();
@@ -44,7 +45,6 @@ export default function DashboardPage() {
     setExpenses(loadedExpenses);
     setUserInfo(loadedUserInfo);
 
-    // Recalculate spent amounts for budgets based on current expenses
     const spentByCategory = new Map<string, number>();
     loadedExpenses.forEach(exp => {
         spentByCategory.set(exp.category, (spentByCategory.get(exp.category) || 0) + exp.amount);
@@ -68,7 +68,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'fiscalCompassExpenses' || event.key === 'fiscalCompassBudgets' || event.key === 'fiscalCompassUserInfo') {
+       // More specific listening based on new data store keys
+      if (event.key && (
+            event.key.endsWith('fiscalCompassExpenses') || 
+            event.key.endsWith('fiscalCompassBudgets') || 
+            event.key.endsWith('fiscalCompassUserInfo') ||
+            event.key === 'fiscalCompassActiveUserId' // Listen for active user changes
+          )
+      ) {
         refreshDashboardData();
       }
     };
@@ -91,20 +98,24 @@ export default function DashboardPage() {
       return;
     }
 
-    const currentUserInfo = loadUserInfo() || { name: '', email: '', totalIncome: 0, currency: 'INR' };
+    const currentUserInfo = loadUserInfo(); // This gets current user's info
+    if (!currentUserInfo) {
+        toast({ title: "Error", description: "User information not found.", variant: "destructive"});
+        return;
+    }
     const updatedIncome = (currentUserInfo.totalIncome || 0) + amount;
     
-    saveUserInfo({ ...currentUserInfo, totalIncome: updatedIncome });
+    saveUserInfo({ ...currentUserInfo, totalIncome: updatedIncome }); // Saves for current user
     
     toast({
       title: "Income Added",
       description: `${currencySymbol}${amount.toFixed(2)} added to your total income.`,
     });
     
-    refreshDashboardData(); // Refresh dashboard to show new income
+    // refreshDashboardData(); // Already handled by storage event listener from saveUserInfo
     setIsAddIncomeDialogOpen(false);
     setIncomeToAdd("");
-    window.dispatchEvent(new Event('storage')); // Notify other components
+    // saveUserInfo now dispatches storage events, so other components should update
   };
 
   return (
@@ -121,7 +132,6 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -158,7 +168,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Budget Status */}
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Budget Status</CardTitle>
@@ -177,7 +186,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Recent Transactions */}
         <div className="lg:col-span-2">
           <RecentTransactionsList transactions={expenses} />
         </div>
@@ -200,13 +208,12 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Add Income Dialog */}
       <Dialog open={isAddIncomeDialogOpen} onOpenChange={setIsAddIncomeDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Add Income</DialogTitle>
             <DialogDescription>
-              Enter the amount you want to add to your current total income.
+              Enter the amount you want to add to your current total income. This will be added to your stored monthly estimate.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">

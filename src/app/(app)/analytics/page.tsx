@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { SpendingBarChart } from "@/components/features/analytics/spending-bar-chart";
 import { SpendingPieChart } from "@/components/features/analytics/spending-pie-chart";
 import type { Expense } from "@/lib/constants";
-import { loadExpenses } from '@/lib/data-store';
+import { loadExpenses, reinitializeActiveUserPrefix } from '@/lib/data-store';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
@@ -21,7 +21,8 @@ export default function AnalyticsPage() {
   const [mostFrequentExpenseType, setMostFrequentExpenseType] = useState<string | null>(null);
 
   const refreshAnalyticsData = useCallback(() => {
-    const loadedExpenses = loadExpenses();
+    reinitializeActiveUserPrefix(); // Ensure correct user context
+    const loadedExpenses = loadExpenses(); // Loads for active user
     setExpenses(loadedExpenses);
 
     if (loadedExpenses.length > 0) {
@@ -60,7 +61,12 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'fiscalCompassExpenses' || event.key === 'fiscalCompassUserInfo') { // UserInfo for currency changes
+      // Listen for changes to expenses or user info (for currency changes), or active user change
+      if (event.key && (
+          event.key.endsWith('fiscalCompassExpenses') || 
+          event.key.endsWith('fiscalCompassUserInfo') ||
+          event.key === 'fiscalCompassActiveUserId')
+      ) {
         refreshAnalyticsData();
       }
     };
@@ -120,7 +126,7 @@ export default function AnalyticsPage() {
                     )}
                 </div>
                  <div>
-                    <h3 className="font-semibold">Savings Rate</h3>
+                    <h3 className="font-semibold">Savings Rate (Placeholder)</h3>
                     <p className="text-accent-foreground text-xl">XX%</p>
                     {/* TODO: Calculate this dynamically based on income (requires income input) */}
                 </div>

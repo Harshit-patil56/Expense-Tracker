@@ -26,12 +26,21 @@ import { Input } from "@/components/ui/input";
 import { saveUserInfo, markSetupAsComplete, type UserInfo } from "@/lib/data-store";
 import { useToast } from "@/hooks/use-toast";
 import { Wallet } from 'lucide-react';
-import { useCurrency } from '@/hooks/use-currency'; // To show currency symbol
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getCurrencySymbol } from '@/lib/data-store';
+
 
 const userSetupFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Please enter a valid email address."),
   totalIncome: z.coerce.number().nonnegative("Income must be a positive number or zero.").default(0),
+  currency: z.string().min(3, "Currency is required.").default('INR'),
 });
 
 type UserSetupFormValues = z.infer<typeof userSetupFormSchema>;
@@ -43,30 +52,35 @@ interface UserSetupModalProps {
 
 export function UserSetupModal({ isOpen, onSetupComplete }: UserSetupModalProps) {
   const { toast } = useToast();
-  const { currencySymbol } = useCurrency(); // Get current currency symbol
+  // const { currencySymbol } = useCurrency(); // Cannot use hook here before context is fully ready
+
   const form = useForm<UserSetupFormValues>({
     resolver: zodResolver(userSetupFormSchema),
     defaultValues: {
       name: "",
       email: "",
       totalIncome: 0,
+      currency: 'INR',
     },
   });
+
+  const selectedCurrencySymbol = getCurrencySymbol(form.watch('currency'));
 
   function onSubmit(data: UserSetupFormValues) {
     const userInfo: UserInfo = {
       name: data.name,
       email: data.email,
-      currency: 'INR', // Default currency for new users
+      currency: data.currency,
       totalIncome: data.totalIncome,
     };
-    saveUserInfo(userInfo);
-    markSetupAsComplete();
+    saveUserInfo(userInfo); // This will also set the active user prefix
+    markSetupAsComplete(); // This will use the active user prefix set by saveUserInfo
+
     toast({
       title: "Welcome to Expense Tracker!",
       description: "Your information has been saved.",
     });
-    onSetupComplete();
+    onSetupComplete(); // This typically reloads the page
   }
 
   return (
@@ -77,7 +91,7 @@ export function UserSetupModal({ isOpen, onSetupComplete }: UserSetupModalProps)
             <Wallet className="h-6 w-6 text-primary" /> Welcome to Expense Tracker!
           </DialogTitle>
           <DialogDescription>
-            Let's get you set up. Please enter your details below. This information will be stored locally on your device.
+            Let's get you set up. Please enter your details below. This information will be stored locally on your device, specific to this user profile.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -110,10 +124,34 @@ export function UserSetupModal({ isOpen, onSetupComplete }: UserSetupModalProps)
             />
             <FormField
               control={form.control}
+              name="currency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Preferred Currency</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="INR">INR - Indian Rupee ({getCurrencySymbol('INR')})</SelectItem>
+                      <SelectItem value="USD">USD - United States Dollar ({getCurrencySymbol('USD')})</SelectItem>
+                      <SelectItem value="EUR">EUR - Euro ({getCurrencySymbol('EUR')})</SelectItem>
+                      <SelectItem value="GBP">GBP - British Pound ({getCurrencySymbol('GBP')})</SelectItem>
+                      <SelectItem value="CAD">CAD - Canadian Dollar ({getCurrencySymbol('CAD')})</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="totalIncome"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Estimated Monthly Income ({currencySymbol})</FormLabel>
+                  <FormLabel>Estimated Monthly Income ({selectedCurrencySymbol})</FormLabel>
                   <FormControl>
                     <Input type="number" step="0.01" placeholder="e.g., 50000.00" {...field} />
                   </FormControl>

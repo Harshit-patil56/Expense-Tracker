@@ -5,7 +5,7 @@ import { BudgetForm } from "@/components/features/budgets/budget-form";
 import { BudgetList } from "@/components/features/budgets/budget-list";
 import type { BudgetGoal, Expense } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { loadBudgets, saveBudgets, loadExpenses } from '@/lib/data-store';
+import { loadBudgets, saveBudgets, loadExpenses, reinitializeActiveUserPrefix } from '@/lib/data-store';
 import { useToast } from "@/hooks/use-toast";
 
 const calculateSpentAmounts = (budgets: BudgetGoal[], expenses: Expense[]): BudgetGoal[] => {
@@ -22,13 +22,12 @@ const calculateSpentAmounts = (budgets: BudgetGoal[], expenses: Expense[]): Budg
 
 export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<BudgetGoal[]>([]);
-  // allExpenses state is removed as it's not strictly needed with the current logic.
-  // We always load expenses when calculating.
   const { toast } = useToast();
 
   const refreshBudgetsWithSpentAmounts = useCallback(() => {
-    const currentBudgets = loadBudgets();
-    const currentExpenses = loadExpenses();
+    reinitializeActiveUserPrefix(); // Ensure correct user context
+    const currentBudgets = loadBudgets(); // Loads for active user
+    const currentExpenses = loadExpenses(); // Loads for active user
     setBudgets(calculateSpentAmounts(currentBudgets, currentExpenses));
   }, []);
 
@@ -38,7 +37,11 @@ export default function BudgetsPage() {
 
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'fiscalCompassExpenses' || event.key === 'fiscalCompassBudgets') {
+      if (event.key && (
+          event.key.endsWith('fiscalCompassExpenses') || 
+          event.key.endsWith('fiscalCompassBudgets') ||
+          event.key === 'fiscalCompassActiveUserId')
+      ) {
         refreshBudgetsWithSpentAmounts();
       }
     };
@@ -50,29 +53,27 @@ export default function BudgetsPage() {
 
 
   const handleAddBudget = (newBudgetData: Omit<BudgetGoal, 'id' | 'spentAmount'>) => {
+    const currentStoredBudgets = loadBudgets(); // Ensure we use current user's budgets
     const tempNewBudget: BudgetGoal = {
       ...newBudgetData,
       id: String(Date.now()),
       spentAmount: 0, 
     };
     
-    const currentBudgets = loadBudgets();
-    const updatedBudgetsList = [tempNewBudget, ...currentBudgets.filter(b => b.category !== tempNewBudget.category)];
-    saveBudgets(updatedBudgetsList);
+    const updatedBudgetsList = [tempNewBudget, ...currentStoredBudgets.filter(b => b.category !== tempNewBudget.category)];
+    saveBudgets(updatedBudgetsList); // Saves for active user
+    // State update will be triggered by storage event or can be done explicitly:
     refreshBudgetsWithSpentAmounts(); 
   };
 
   const handleDeleteBudget = useCallback((budgetId: string) => {
-    setBudgets(prevBudgets => {
-        const currentBudgets = loadBudgets(); // Ensure we are working with the latest from storage
-        const updatedBudgets = currentBudgets.filter(b => b.id !== budgetId);
-        saveBudgets(updatedBudgets);
-        toast({ title: "Budget Deleted", description: "The budget goal has been removed." });
-        // Recalculate spent amounts for the remaining budgets
-        const currentExpenses = loadExpenses();
-        return calculateSpentAmounts(updatedBudgets, currentExpenses);
-    });
-  }, [toast]);
+    const currentStoredBudgets = loadBudgets(); // Ensure we are working with the latest from storage for the active user
+    const updatedBudgets = currentStoredBudgets.filter(b => b.id !== budgetId);
+    saveBudgets(updatedBudgets); // Saves for active user
+    toast({ title: "Budget Deleted", description: "The budget goal has been removed." });
+    // State update will be triggered by storage event or explicitly:
+    refreshBudgetsWithSpentAmounts();
+  }, [toast, refreshBudgetsWithSpentAmounts]);
 
 
   return (

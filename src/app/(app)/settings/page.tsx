@@ -31,17 +31,18 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { UploadCloud, FileDown, UserCircle, DollarSign } from "lucide-react";
-import { loadUserInfo, saveUserInfo, type UserInfo, getCurrencySymbol, clearAllUserData } from '@/lib/data-store';
+import { UploadCloud, FileDown, UserCircle } from "lucide-react";
+import { loadUserInfo, saveUserInfo, type UserInfo, getCurrencySymbol, clearAllUserData, reinitializeActiveUserPrefix } from '@/lib/data-store';
 import { useCurrency } from '@/hooks/use-currency';
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { currencySymbol } = useCurrency(); 
+  const { currencySymbol, currencyCode } = useCurrency(); 
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [userIncome, setUserIncome] = useState<number | string>('');
-  const [selectedCurrency, setSelectedCurrency] = useState('INR');
+  const [selectedCurrency, setSelectedCurrency] = useState('INR'); // Defaulted, will be overwritten by loaded data
+  
   const [enableCloudSync, setEnableCloudSync] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -57,8 +58,15 @@ export default function SettingsPage() {
     if (userInfo) {
       setUserName(userInfo.name);
       setUserEmail(userInfo.email);
-      setSelectedCurrency(userInfo.currency || 'INR');
-      setUserIncome(userInfo.totalIncome ?? 0);
+      setSelectedCurrency(userInfo.currency); // currency is now required in UserInfo
+      setUserIncome(userInfo.totalIncome); // totalIncome is now required
+    } else {
+      // This case should ideally not happen if AppInitializer forces setup
+      // For safety, set to defaults or handle as an error
+      setUserName('');
+      setUserEmail('');
+      setSelectedCurrency('INR');
+      setUserIncome(0);
     }
   }, []);
   
@@ -66,34 +74,78 @@ export default function SettingsPage() {
     loadSettingsData();
   }, [loadSettingsData]);
 
+  // Listen for storage changes to reflect updates from other tabs/components
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      // Check for ACTIVE_USER_ID_KEY or specific user info key change
+      if (event.key === 'fiscalCompassActiveUserId' || (event.key && event.key.endsWith('fiscalCompassUserInfo'))) {
+        reinitializeActiveUserPrefix(); // Ensure data_store uses the latest active user
+        loadSettingsData();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [loadSettingsData]);
+
+
   const handleProfileSave = useCallback(() => {
     if (!userName.trim() || !userEmail.trim()) {
       toast({ title: "Error", description: "Name and email cannot be empty.", variant: "destructive" });
       return;
     }
+    // Email validation (simple)
+    if (!/\S+@\S+\.\S+/.test(userEmail)) {
+        toast({ title: "Error", description: "Please enter a valid email address.", variant: "destructive" });
+        return;
+    }
+
     const incomeValue = typeof userIncome === 'string' ? parseFloat(userIncome) : userIncome;
     if (isNaN(incomeValue) || incomeValue < 0) {
         toast({ title: "Error", description: "Income must be a valid positive number or zero.", variant: "destructive" });
         return;
     }
 
+    const currentUserInfo = loadUserInfo();
+    if (currentUserInfo && (currentUserInfo.name !== userName || currentUserInfo.email !== userEmail)) {
+        toast({ 
+            title: "Profile Change Not Supported", 
+            description: "Changing name or email after initial setup is not supported in this version. This could de-link your current data. Please delete account and re-setup if you need to change these.",
+            variant: "destructive",
+            duration: 7000,
+        });
+        // Revert UI to stored values if name/email change was attempted
+        setUserName(currentUserInfo.name);
+        setUserEmail(currentUserInfo.email);
+        return;
+    }
+
+
     const updatedUserInfo: UserInfo = { 
         name: userName, 
-        email: userEmail,
+        email: userEmail, // These should match existing if user is already set up
         currency: selectedCurrency,
         totalIncome: incomeValue,
     };
-    saveUserInfo(updatedUserInfo);
-    toast({ title: "Profile Updated", description: "Your profile information has been saved." });
-    window.dispatchEvent(new Event('storage')); 
+    saveUserInfo(updatedUserInfo); // saveUserInfo now handles active user key and user-specific key
+    toast({ title: "Settings Updated", description: "Your preferences have been saved." });
+    // No need to manually dispatch 'storage' event, saveUserInfo does it now
   }, [userName, userEmail, selectedCurrency, userIncome, toast]);
 
   const handleCurrencyChange = (value: string) => {
     setSelectedCurrency(value);
-    const currentUserInfo = loadUserInfo() || { name: userName, email: userEmail, totalIncome: typeof userIncome === 'string' ? parseFloat(userIncome) : userIncome || 0 };
-    saveUserInfo({ ...currentUserInfo, currency: value });
-    toast({ title: "Currency preference updated", description: `Currency set to ${value}. Save profile to confirm other changes.`});
-    window.dispatchEvent(new Event('storage')); 
+    // Save immediately when currency changes, as it's a primary preference
+    const currentUserInfo = loadUserInfo();
+    if (currentUserInfo) {
+        const incomeValue = typeof userIncome === 'string' ? parseFloat(userIncome) : userIncome;
+         saveUserInfo({ 
+            ...currentUserInfo, 
+            currency: value,
+            totalIncome: !isNaN(incomeValue) ? incomeValue : currentUserInfo.totalIncome, // Persist current income
+        });
+        toast({ title: "Currency preference updated", description: `Currency set to ${value}.`});
+    }
   };
 
 
@@ -101,19 +153,15 @@ export default function SettingsPage() {
     toast({ title: "Password Changed", description: "Your password has been updated (Placeholder)." });
   };
 
-  const handleDeleteAccount = () => {
-    setIsDeleteDialogOpen(true);
-  };
-
   const confirmActualDelete = () => {
-    clearAllUserData();
+    clearAllUserData(); // This now clears current active user's data and the active user key
     toast({
       title: "Account Deleted",
-      description: "All your data has been successfully removed. The app will now reset.",
+      description: "All your data for this profile has been successfully removed. The app will now reset.",
       variant: "destructive",
     });
     setIsDeleteDialogOpen(false);
-    window.location.reload();
+    window.location.reload(); // Reload to go back to AppInitializer and setup modal
   };
 
 
@@ -133,12 +181,12 @@ export default function SettingsPage() {
       document.documentElement.classList.remove('dark');
     }
     if (typeof window !== 'undefined') {
-        localStorage.setItem('theme', checked ? 'dark' : 'light');
+        localStorage.setItem('theme', checked ? 'dark' : 'light'); // Theme is a global preference, not user-specific
     }
     toast({ title: "Theme Changed", description: `Dark mode ${checked ? 'enabled' : 'disabled'}.` });
   };
 
-  useEffect(() => {
+  useEffect(() => { // For theme persistence
     if (typeof window !== 'undefined') {
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
@@ -156,56 +204,25 @@ export default function SettingsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and application preferences.</p>
+        <p className="text-muted-foreground">Manage your account and application preferences for {userName || "your profile"}.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><UserCircle className="h-6 w-6" /> Profile Information</CardTitle>
-            <CardDescription>Update your personal details and financial settings.</CardDescription>
+            <CardDescription>Update your personal details and financial settings. Name and email are fixed after initial setup.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="Your Name" />
+              <Label htmlFor="name">Name (Fixed)</Label>
+              <Input id="name" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="Your Name" readOnly disabled />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} placeholder="your.email@example.com" />
+              <Label htmlFor="email">Email (Fixed)</Label>
+              <Input id="email" type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} placeholder="your.email@example.com" readOnly disabled />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="totalIncome">Estimated Monthly Income ({currencySymbol})</Label>
-              <Input 
-                id="totalIncome" 
-                type="number" 
-                step="0.01" 
-                value={userIncome} 
-                onChange={(e) => setUserIncome(e.target.value)} 
-                placeholder="e.g., 50000.00" 
-              />
-            </div>
-            <Button onClick={handleProfileSave}>Save Profile</Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Preferences</CardTitle>
-            <CardDescription>Customize your app experience.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="dark-mode" className="text-base">Dark Mode</Label>
-                <p className="text-sm text-muted-foreground">
-                  Enable dark theme for the application.
-                </p>
-              </div>
-              <Switch id="dark-mode" aria-label="Toggle dark mode" checked={darkMode} onCheckedChange={toggleDarkMode} />
-            </div>
-            
-            <div className="space-y-2">
+             <div className="space-y-2">
                 <Label htmlFor="currency">Default Currency</Label>
                 <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
                     <SelectTrigger id="currency">
@@ -220,12 +237,42 @@ export default function SettingsPage() {
                     </SelectContent>
                 </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="totalIncome">Estimated Monthly Income ({currencySymbol})</Label>
+              <Input 
+                id="totalIncome" 
+                type="number" 
+                step="0.01" 
+                value={userIncome} 
+                onChange={(e) => setUserIncome(e.target.value)} 
+                placeholder="e.g., 50000.00" 
+              />
+            </div>
+            <Button onClick={handleProfileSave}>Save Preferences</Button>
+          </CardContent>
+        </Card>
 
-             <div className="flex items-center justify-between">
+        <Card>
+          <CardHeader>
+            <CardTitle>Appearance & Notifications</CardTitle>
+            <CardDescription>Customize your app experience.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="dark-mode" className="text-base">Dark Mode</Label>
+                <p className="text-sm text-muted-foreground">
+                  Enable dark theme for the application.
+                </p>
+              </div>
+              <Switch id="dark-mode" aria-label="Toggle dark mode" checked={darkMode} onCheckedChange={toggleDarkMode} />
+            </div>
+            
+            <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="notifications" className="text-base">Email Notifications</Label>
                 <p className="text-sm text-muted-foreground">
-                  Receive weekly summaries and budget alerts.
+                  Receive weekly summaries and budget alerts (Placeholder).
                 </p>
               </div>
               <Switch id="notifications" checked={emailNotifications} onCheckedChange={setEmailNotifications} aria-label="Toggle email notifications" />
@@ -236,7 +283,7 @@ export default function SettingsPage() {
 
       <Card>
           <CardHeader>
-            <CardTitle>Data Sync</CardTitle>
+            <CardTitle>Data Sync (Placeholder)</CardTitle>
             <CardDescription>Manage how your data is stored and synchronized.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -272,37 +319,37 @@ export default function SettingsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
             <p className="text-xs text-muted-foreground">
-                Your data is currently saved locally on this device. Enabling cloud sync will allow you to access it elsewhere after syncing (once implemented).
+                Your data is currently saved locally on this device under your profile.
             </p>
           </CardContent>
         </Card>
 
        <Card>
           <CardHeader>
-            <CardTitle>Security</CardTitle>
+            <CardTitle>Security & Account</CardTitle>
             <CardDescription>Manage your account security settings.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              <div className="space-y-2">
-              <Label htmlFor="current-password">Current Password</Label>
+              <Label htmlFor="current-password">Current Password (Placeholder)</Label>
               <Input id="current-password" type="password" />
             </div>
              <div className="space-y-2">
-              <Label htmlFor="new-password">New Password</Label>
+              <Label htmlFor="new-password">New Password (Placeholder)</Label>
               <Input id="new-password" type="password" />
             </div>
             <Button onClick={handleChangePassword}>Change Password</Button>
             <div className="border-t pt-4 mt-4">
                 <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive">Delete Account</Button>
+                    <Button variant="destructive">Delete Current Profile Data</Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
                         This action cannot be undone. This will permanently delete all
-                        your data from this device. You will need to set up the app again.
+                        data for the profile "{userName}" from this device. You will be taken back to the initial setup.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -311,13 +358,13 @@ export default function SettingsPage() {
                         onClick={confirmActualDelete} 
                         className={buttonVariants({ variant: "destructive" })}
                       >
-                        Delete Account
+                        Delete Profile Data
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
                  <p className="text-xs text-muted-foreground mt-2">
-                    This action is irreversible and will remove all data from this device.
+                    This action is irreversible and will remove all data for the current profile from this device.
                  </p>
             </div>
           </CardContent>

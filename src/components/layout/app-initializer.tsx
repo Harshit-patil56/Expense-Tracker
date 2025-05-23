@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { hasCompletedSetup as checkSetupStatus } from '@/lib/data-store';
+import { hasActiveUserCompletedSetup, reinitializeActiveUserPrefix } from '@/lib/data-store';
 import { UserSetupModal } from '@/components/features/onboarding/user-setup-modal';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -15,8 +15,9 @@ export function AppInitializer({ children }: AppInitializerProps) {
   const [showSetupModal, setShowSetupModal] = useState(false);
 
   useEffect(() => {
-    // This effect runs only on the client after hydration
-    const setupComplete = checkSetupStatus();
+    // Ensure the active user prefix is fresh on initial load or after a potential clearAllUserData + reload
+    reinitializeActiveUserPrefix(); 
+    const setupComplete = hasActiveUserCompletedSetup();
     if (!setupComplete) {
       setShowSetupModal(true);
     }
@@ -25,14 +26,12 @@ export function AppInitializer({ children }: AppInitializerProps) {
 
   const handleSetupComplete = () => {
     setShowSetupModal(false);
-    // Potentially trigger a data refresh for other components if needed,
-    // or simply let them re-render with the new setup state.
-    // Forcing a reload can ensure all components pick up fresh local storage.
+    // Force reload to ensure all components and hooks re-initialize
+    // with the new active user context from localStorage.
     window.location.reload();
   };
 
   if (isLoading) {
-    // Basic loading state to prevent flash of unstyled content or app before check
     return (
         <div className="flex h-screen w-screen items-center justify-center">
             <div className="space-y-4 p-8">
