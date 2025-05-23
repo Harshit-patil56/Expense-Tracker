@@ -36,7 +36,6 @@ export default function AiInsightsPage() {
                             width={600} 
                             height={400} 
                             className="rounded-lg mb-4 shadow-md" 
-                            data-ai-hint="robot finance" 
                         />
                         <h3 className="text-lg font-semibold text-primary mb-2">How It Works</h3>
                         <p className="text-sm text-muted-foreground">

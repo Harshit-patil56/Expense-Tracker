@@ -134,7 +134,7 @@ export default function DashboardPage() {
       
       <Card className="bg-gradient-to-r from-primary/10 via-accent/5 to-background">
         <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6">
-          <Image src="https://placehold.co/300x200.png" alt="Financial Planning" width={300} height={200} className="rounded-lg shadow-md" data-ai-hint="finance planning" />
+          <Image src="https://placehold.co/300x200.png" alt="Financial Planning" width={300} height={200} className="rounded-lg shadow-md" />
           <div>
             <h2 className="text-2xl font-semibold text-primary mb-2">Unlock Your Financial Potential</h2>
             <p className="text-muted-foreground mb-4">
@@ -151,3 +151,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
