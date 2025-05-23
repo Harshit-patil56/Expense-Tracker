@@ -1,13 +1,12 @@
 
-"use client"; // To manage state for budgets
-import React, { useState } from 'react';
+"use client";
+import React, { useState, useEffect, useCallback } from 'react';
 import { BudgetForm } from "@/components/features/budgets/budget-form";
 import { BudgetList } from "@/components/features/budgets/budget-list";
-import { placeholderBudgets, placeholderExpenses, type BudgetGoal, type Expense } from "@/lib/constants";
+import type { BudgetGoal, Expense } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { loadBudgets, saveBudgets, loadExpenses } from '@/lib/data-store';
 
-// Function to calculate spent amount for each category from expenses
-// Optimized version: O(expenses.length + budgets.length) instead of O(expenses.length * budgets.length)
 const calculateSpentAmounts = (budgets: BudgetGoal[], expenses: Expense[]): BudgetGoal[] => {
   const spentByCategory = new Map<string, number>();
   for (const expense of expenses) {
@@ -20,23 +19,48 @@ const calculateSpentAmounts = (budgets: BudgetGoal[], expenses: Expense[]): Budg
   }));
 };
 
-
 export default function BudgetsPage() {
-  const [budgets, setBudgets] = useState<BudgetGoal[]>(calculateSpentAmounts(placeholderBudgets, placeholderExpenses));
+  const [budgets, setBudgets] = useState<BudgetGoal[]>([]);
+  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
+
+  const refreshBudgetsWithSpentAmounts = useCallback(() => {
+    const currentBudgets = loadBudgets();
+    const currentExpenses = loadExpenses(); // Load expenses for calculation
+    setAllExpenses(currentExpenses); // Keep a copy for other potential uses
+    setBudgets(calculateSpentAmounts(currentBudgets, currentExpenses));
+  }, []);
+
+  useEffect(() => {
+    refreshBudgetsWithSpentAmounts();
+  }, [refreshBudgetsWithSpentAmounts]);
+
+  // Effect to re-calculate spent amounts if expenses change from another part of the app
+  // This uses a simple localStorage event listener as a basic cross-tab/component sync trigger
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'fiscalCompassExpenses' || event.key === 'fiscalCompassBudgets') {
+        refreshBudgetsWithSpentAmounts();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [refreshBudgetsWithSpentAmounts]);
+
 
   const handleAddBudget = (newBudgetData: Omit<BudgetGoal, 'id' | 'spentAmount'>) => {
     const tempNewBudget: BudgetGoal = {
       ...newBudgetData,
       id: String(Date.now()),
-      spentAmount: 0, // This will be correctly calculated by the optimized calculateSpentAmounts
+      spentAmount: 0, // Will be recalculated
     };
-    setBudgets(prevBudgets => {
-      const updatedBudgetsList = [tempNewBudget, ...prevBudgets.filter(b => b.category !== tempNewBudget.category)];
-      // Call the optimized calculateSpentAmounts on the new list
-      return calculateSpentAmounts(updatedBudgetsList, placeholderExpenses);
-    });
+    
+    const currentBudgets = loadBudgets();
+    const updatedBudgetsList = [tempNewBudget, ...currentBudgets.filter(b => b.category !== tempNewBudget.category)];
+    saveBudgets(updatedBudgetsList);
+    refreshBudgetsWithSpentAmounts(); // Recalculate with potentially new expenses too
   };
-
 
   return (
     <div className="space-y-8">

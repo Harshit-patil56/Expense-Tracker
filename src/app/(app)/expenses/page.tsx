@@ -1,22 +1,39 @@
-"use client"; // Make this a client component to manage state for expenses
-import React, { useState } from 'react';
+
+"use client";
+import React, { useState, useEffect } from 'react';
 import { ExpenseForm } from "@/components/features/expenses/expense-form";
 import { ExpenseTable } from "@/components/features/expenses/expense-table";
-import { placeholderExpenses, type Expense } from "@/lib/constants";
+import type { Expense } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { loadExpenses, saveExpenses } from '@/lib/data-store';
 
 export default function ExpensesPage() {
-  // Use state to manage expenses if they are to be updated on this page
-  const [expenses, setExpenses] = useState<Expense[]>(placeholderExpenses);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  useEffect(() => {
+    setExpenses(loadExpenses());
+  }, []);
 
   const handleAddExpense = (newExpenseData: Omit<Expense, 'id'>) => {
-    const newExpense: Expense = {
-      ...newExpenseData,
-      id: String(Date.now()), // simple unique id
-    };
-    setExpenses(prevExpenses => [newExpense, ...prevExpenses]);
+    setExpenses(prevExpenses => {
+      const newExpense: Expense = {
+        ...newExpenseData,
+        id: String(Date.now()), // simple unique id
+      };
+      const updatedExpenses = [newExpense, ...prevExpenses];
+      saveExpenses(updatedExpenses);
+      return updatedExpenses;
+    });
   };
 
+  // Placeholder for delete/edit functionality if added to ExpenseTable
+  // const handleDeleteExpense = (expenseId: string) => {
+  //   setExpenses(prevExpenses => {
+  //     const updatedExpenses = prevExpenses.filter(exp => exp.id !== expenseId);
+  //     saveExpenses(updatedExpenses);
+  //     return updatedExpenses;
+  //   });
+  // };
 
   return (
     <div className="space-y-8">

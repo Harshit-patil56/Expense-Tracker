@@ -1,25 +1,59 @@
 
+"use client";
+import React, { useState, useEffect, useCallback } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, ListChecks } from "lucide-react";
 import { OverviewCard } from "@/components/features/dashboard/overview-card";
 import { BudgetProgressCard } from "@/components/features/budgets/budget-progress-card";
 import { RecentTransactionsList } from "@/components/features/expenses/recent-transactions-list";
-import { placeholderExpenses, placeholderBudgets } from "@/lib/constants";
+import type { Expense, BudgetGoal } from "@/lib/constants";
+import { loadExpenses, loadBudgets } from '@/lib/data-store';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
 
-// Calculate some overview stats from placeholder data
-const totalSpent = placeholderExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-const totalBudgeted = placeholderBudgets.reduce((sum, bud) => sum + bud.goalAmount, 0);
-const incomePlaceholder = 250000; // Example income in INR
+const incomePlaceholder = 250000; // Example income in INR, could be made configurable
 
 export default function DashboardPage() {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [budgets, setBudgets] = useState<BudgetGoal[]>([]);
+  const [totalSpent, setTotalSpent] = useState(0);
+  const [netSavings, setNetSavings] = useState(0);
+
+  const refreshDashboardData = useCallback(() => {
+    const loadedExpenses = loadExpenses();
+    const loadedBudgets = loadBudgets();
+    
+    setExpenses(loadedExpenses);
+    setBudgets(loadedBudgets);
+
+    const currentTotalSpent = loadedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    setTotalSpent(currentTotalSpent);
+    setNetSavings(incomePlaceholder - currentTotalSpent);
+  }, []);
+
+  useEffect(() => {
+    refreshDashboardData();
+  }, [refreshDashboardData]);
+
+  // Effect to re-calculate if expenses/budgets change from another part of the app
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'fiscalCompassExpenses' || event.key === 'fiscalCompassBudgets') {
+        refreshDashboardData();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [refreshDashboardData]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <Link href="/expenses/add">
+        <Link href="/expenses">
           <Button>Add Expense</Button>
         </Link>
       </div>
@@ -30,23 +64,23 @@ export default function DashboardPage() {
           title="Total Income"
           value={`₹${incomePlaceholder.toFixed(2)}`}
           description="This month (placeholder)"
-          icon={DollarSign} // Icon can remain generic
+          icon={DollarSign}
         />
         <OverviewCard
           title="Total Spent"
           value={`₹${totalSpent.toFixed(2)}`}
-          description={`${placeholderExpenses.length} transactions`}
+          description={`${expenses.length} transactions`}
           icon={TrendingDown}
         />
         <OverviewCard
           title="Net Savings"
-          value={`₹${(incomePlaceholder - totalSpent).toFixed(2)}`}
+          value={`₹${netSavings.toFixed(2)}`}
           description="Income - Expenses"
           icon={TrendingUp}
         />
          <OverviewCard
           title="Active Budgets"
-          value={`${placeholderBudgets.length}`}
+          value={`${budgets.length}`}
           description="Tracking progress"
           icon={ListChecks}
         />
@@ -60,21 +94,21 @@ export default function DashboardPage() {
             <CardDescription>Overview of your budget goals.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {placeholderBudgets.slice(0,3).map((budget) => (
+            {budgets.slice(0,3).map((budget) => (
               <BudgetProgressCard key={budget.id} budget={budget} />
             ))}
-             {placeholderBudgets.length > 3 && (
+             {budgets.length > 3 && (
               <Link href="/budgets" className="block text-center mt-2">
                 <Button variant="link" className="text-primary">View All Budgets</Button>
               </Link>
             )}
-            {placeholderBudgets.length === 0 && <p className="text-sm text-muted-foreground">No budgets set yet. <Link href="/budgets" className="text-primary underline">Create one?</Link></p>}
+            {budgets.length === 0 && <p className="text-sm text-muted-foreground">No budgets set yet. <Link href="/budgets" className="text-primary underline">Create one?</Link></p>}
           </CardContent>
         </Card>
 
         {/* Recent Transactions */}
         <div className="lg:col-span-2">
-          <RecentTransactionsList transactions={placeholderExpenses} />
+          <RecentTransactionsList transactions={expenses} />
         </div>
       </div>
       
