@@ -1,17 +1,28 @@
 
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, ListChecks } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, ListChecks, PlusCircle } from "lucide-react";
 import { OverviewCard } from "@/components/features/dashboard/overview-card";
 import { BudgetProgressCard } from "@/components/features/budgets/budget-progress-card";
 import { RecentTransactionsList } from "@/components/features/expenses/recent-transactions-list";
 import type { Expense, BudgetGoal } from "@/lib/constants";
-import { loadExpenses, loadBudgets, loadUserInfo, type UserInfo } from '@/lib/data-store';
+import { loadExpenses, loadBudgets, loadUserInfo, saveUserInfo, type UserInfo } from '@/lib/data-store';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
 import { useCurrency } from '@/hooks/use-currency';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -20,6 +31,10 @@ export default function DashboardPage() {
   const [netSavings, setNetSavings] = useState(0);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const { currencySymbol } = useCurrency();
+  const { toast } = useToast();
+
+  const [isAddIncomeDialogOpen, setIsAddIncomeDialogOpen] = useState(false);
+  const [incomeToAdd, setIncomeToAdd] = useState<string>("");
 
   const refreshDashboardData = useCallback(() => {
     const loadedExpenses = loadExpenses();
@@ -39,7 +54,6 @@ export default function DashboardPage() {
         spentAmount: spentByCategory.get(budget.category) || 0,
     }));
     setBudgets(updatedBudgets);
-
 
     const currentTotalSpent = loadedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
     setTotalSpent(currentTotalSpent);
@@ -66,6 +80,33 @@ export default function DashboardPage() {
 
   const displayIncome = userInfo?.totalIncome ?? 0;
 
+  const handleAddIncomeSubmit = () => {
+    const amount = parseFloat(incomeToAdd);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid positive number for income.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const currentUserInfo = loadUserInfo() || { name: '', email: '', totalIncome: 0, currency: 'INR' };
+    const updatedIncome = (currentUserInfo.totalIncome || 0) + amount;
+    
+    saveUserInfo({ ...currentUserInfo, totalIncome: updatedIncome });
+    
+    toast({
+      title: "Income Added",
+      description: `${currencySymbol}${amount.toFixed(2)} added to your total income.`,
+    });
+    
+    refreshDashboardData(); // Refresh dashboard to show new income
+    setIsAddIncomeDialogOpen(false);
+    setIncomeToAdd("");
+    window.dispatchEvent(new Event('storage')); // Notify other components
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -82,12 +123,20 @@ export default function DashboardPage() {
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <OverviewCard
-          title="Total Income"
-          value={`${currencySymbol}${displayIncome.toFixed(2)}`}
-          description="Your estimated monthly income"
-          icon={DollarSign}
-        />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+            <DollarSign className="h-5 w-5 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{currencySymbol}{displayIncome.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">Your estimated monthly income</p>
+            <Button variant="outline" size="sm" className="mt-3 text-xs" onClick={() => setIsAddIncomeDialogOpen(true)}>
+              <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
+              Add Income
+            </Button>
+          </CardContent>
+        </Card>
         <OverviewCard
           title="Total Spent"
           value={`${currencySymbol}${totalSpent.toFixed(2)}`}
@@ -150,6 +199,38 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add Income Dialog */}
+      <Dialog open={isAddIncomeDialogOpen} onOpenChange={setIsAddIncomeDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Income</DialogTitle>
+            <DialogDescription>
+              Enter the amount you want to add to your current total income.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="income-amount" className="text-right">
+                Amount ({currencySymbol})
+              </Label>
+              <Input
+                id="income-amount"
+                type="number"
+                step="0.01"
+                value={incomeToAdd}
+                onChange={(e) => setIncomeToAdd(e.target.value)}
+                className="col-span-3"
+                placeholder="e.g., 100.00"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddIncomeDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddIncomeSubmit}>Add to Total Income</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
