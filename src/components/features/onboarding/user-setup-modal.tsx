@@ -26,10 +26,12 @@ import { Input } from "@/components/ui/input";
 import { saveUserInfo, markSetupAsComplete, type UserInfo } from "@/lib/data-store";
 import { useToast } from "@/hooks/use-toast";
 import { Wallet } from 'lucide-react';
+import { useCurrency } from '@/hooks/use-currency'; // To show currency symbol
 
 const userSetupFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Please enter a valid email address."),
+  totalIncome: z.coerce.number().nonnegative("Income must be a positive number or zero.").default(0),
 });
 
 type UserSetupFormValues = z.infer<typeof userSetupFormSchema>;
@@ -41,11 +43,13 @@ interface UserSetupModalProps {
 
 export function UserSetupModal({ isOpen, onSetupComplete }: UserSetupModalProps) {
   const { toast } = useToast();
+  const { currencySymbol } = useCurrency(); // Get current currency symbol
   const form = useForm<UserSetupFormValues>({
     resolver: zodResolver(userSetupFormSchema),
     defaultValues: {
       name: "",
       email: "",
+      totalIncome: 0,
     },
   });
 
@@ -54,6 +58,7 @@ export function UserSetupModal({ isOpen, onSetupComplete }: UserSetupModalProps)
       name: data.name,
       email: data.email,
       currency: 'INR', // Default currency for new users
+      totalIncome: data.totalIncome,
     };
     saveUserInfo(userInfo);
     markSetupAsComplete();
@@ -98,6 +103,19 @@ export function UserSetupModal({ isOpen, onSetupComplete }: UserSetupModalProps)
                   <FormLabel>Email</FormLabel>
                   <FormControl>
                     <Input type="email" placeholder="john.doe@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="totalIncome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estimated Monthly Income ({currencySymbol})</FormLabel>
+                  <FormControl>
+                    <Input type="number" step="0.01" placeholder="e.g., 50000.00" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

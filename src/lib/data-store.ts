@@ -12,7 +12,8 @@ const SETUP_COMPLETE_KEY = 'fiscalCompassSetupComplete';
 export interface UserInfo {
   name: string;
   email: string;
-  currency?: string; // Added currency preference
+  currency?: string;
+  totalIncome?: number; // Added totalIncome
 }
 
 // Helper to safely access localStorage
@@ -66,10 +67,11 @@ export const saveBudgets = (budgets: BudgetGoal[]): void => {
 };
 
 export const loadUserInfo = (): UserInfo | null => {
-  const defaultUserInfo = { name: '', email: '', currency: 'INR' };
+  const defaultUserInfo: UserInfo = { name: '', email: '', currency: 'INR', totalIncome: 0 };
   const userInfo = getLocalStorageItem<UserInfo | null>(USER_INFO_KEY, null);
   if (userInfo) {
-    return { ...defaultUserInfo, ...userInfo }; // Ensure currency has a default
+    // Ensure totalIncome has a default if it's missing from old stored data
+    return { ...defaultUserInfo, ...userInfo, totalIncome: userInfo.totalIncome ?? 0 };
   }
   return null;
 };
@@ -98,9 +100,6 @@ export const getCurrencySymbol = (currencyCode: string | undefined): string => {
     }
 };
 
-// This function is no longer needed for automatic placeholder initialization.
-// It could be repurposed if a "load sample data" feature is added.
 export const initializeLocalData = (): void => {
-    // console.log("initializeLocalData called, but now only ensures keys exist if logic requires, doesn't populate by default for new users.");
+    // This function is a placeholder if needed for future sample data features.
 };
-

@@ -13,8 +13,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCurrency } from '@/hooks/use-currency';
 
-const incomePlaceholder = 250000; // Example income, could be made configurable
-
 export default function DashboardPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<BudgetGoal[]>([]);
@@ -45,7 +43,9 @@ export default function DashboardPage() {
 
     const currentTotalSpent = loadedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
     setTotalSpent(currentTotalSpent);
-    setNetSavings(incomePlaceholder - currentTotalSpent);
+    
+    const currentIncome = loadedUserInfo?.totalIncome ?? 0;
+    setNetSavings(currentIncome - currentTotalSpent);
   }, []);
 
   useEffect(() => {
@@ -63,6 +63,8 @@ export default function DashboardPage() {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [refreshDashboardData]);
+
+  const displayIncome = userInfo?.totalIncome ?? 0;
 
   return (
     <div className="space-y-6">
@@ -82,8 +84,8 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <OverviewCard
           title="Total Income"
-          value={`${currencySymbol}${incomePlaceholder.toFixed(2)}`}
-          description="This month (placeholder)"
+          value={`${currencySymbol}${displayIncome.toFixed(2)}`}
+          description="Your estimated monthly income"
           icon={DollarSign}
         />
         <OverviewCard
@@ -151,4 +153,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

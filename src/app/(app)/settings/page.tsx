@@ -20,14 +20,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { UploadCloud, FileDown, UserCircle } from "lucide-react";
+import { UploadCloud, FileDown, UserCircle, DollarSign } from "lucide-react";
 import { loadUserInfo, saveUserInfo, type UserInfo, getCurrencySymbol } from '@/lib/data-store';
+import { useCurrency } from '@/hooks/use-currency';
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const { currencySymbol, currencyCode, updateCurrency: refreshCurrencyHook } = useCurrency(); // Get currency utilities
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
-  const [selectedCurrency, setSelectedCurrency] = useState('INR');
+  const [userIncome, setUserIncome] = useState<number | string>(''); // Can be string from input
+  const [selectedCurrency, setSelectedCurrency] = useState('INR'); // Keep this for the Select component
   const [enableCloudSync, setEnableCloudSync] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -37,41 +40,50 @@ export default function SettingsPage() {
   });
   const [emailNotifications, setEmailNotifications] = useState(true);
 
-  useEffect(() => {
+  const loadSettingsData = useCallback(() => {
     const userInfo = loadUserInfo();
     if (userInfo) {
       setUserName(userInfo.name);
       setUserEmail(userInfo.email);
       setSelectedCurrency(userInfo.currency || 'INR');
+      setUserIncome(userInfo.totalIncome ?? 0); // Default to 0 if not set
     }
   }, []);
+  
+  useEffect(() => {
+    loadSettingsData();
+  }, [loadSettingsData]);
 
   const handleProfileSave = useCallback(() => {
     if (!userName.trim() || !userEmail.trim()) {
       toast({ title: "Error", description: "Name and email cannot be empty.", variant: "destructive" });
       return;
     }
-    const currentUserInfo = loadUserInfo();
+    const incomeValue = typeof userIncome === 'string' ? parseFloat(userIncome) : userIncome;
+    if (isNaN(incomeValue) || incomeValue < 0) {
+        toast({ title: "Error", description: "Income must be a valid positive number or zero.", variant: "destructive" });
+        return;
+    }
+
+    const currentUserInfo = loadUserInfo(); // Get current to preserve other potential settings
     const updatedUserInfo: UserInfo = { 
-        ...currentUserInfo, // Preserve other potential settings
         name: userName, 
         email: userEmail,
-        currency: selectedCurrency
+        currency: selectedCurrency,
+        totalIncome: incomeValue,
     };
     saveUserInfo(updatedUserInfo);
     toast({ title: "Profile Updated", description: "Your profile information has been saved." });
-    // Force a reload to ensure currency symbol updates everywhere if it changed
-    // This is a simple way; a context/global state would be more elegant for live updates without reload
     window.dispatchEvent(new Event('storage')); // Trigger storage event for other components
-  }, [userName, userEmail, selectedCurrency, toast]);
+  }, [userName, userEmail, selectedCurrency, userIncome, toast]);
 
   const handleCurrencyChange = (value: string) => {
     setSelectedCurrency(value);
-    // Autosave currency change for immediate effect after profile save or next load
-    const currentUserInfo = loadUserInfo() || { name: '', email: '' };
+    // Autosave currency change for immediate effect
+    const currentUserInfo = loadUserInfo() || { name: '', email: '', totalIncome: 0 };
     saveUserInfo({ ...currentUserInfo, currency: value });
-     toast({ title: "Currency preference updated", description: `Currency set to ${value}. Save profile to confirm other changes.`});
-    window.dispatchEvent(new Event('storage')); // Trigger storage event for currency hook
+    toast({ title: "Currency preference updated", description: `Currency set to ${value}. Save profile to confirm other changes.`});
+    window.dispatchEvent(new Event('storage')); // Trigger storage event for currency hook and other components
   };
 
 
@@ -129,7 +141,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><UserCircle className="h-6 w-6" /> Profile Information</CardTitle>
-            <CardDescription>Update your personal details.</CardDescription>
+            <CardDescription>Update your personal details and financial settings.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -139,6 +151,17 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} placeholder="your.email@example.com" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="totalIncome">Estimated Monthly Income ({currencySymbol})</Label>
+              <Input 
+                id="totalIncome" 
+                type="number" 
+                step="0.01" 
+                value={userIncome} 
+                onChange={(e) => setUserIncome(e.target.value)} 
+                placeholder="e.g., 50000.00" 
+              />
             </div>
             <Button onClick={handleProfileSave}>Save Profile</Button>
           </CardContent>
