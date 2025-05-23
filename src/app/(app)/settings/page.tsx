@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -19,18 +19,29 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { UploadCloud, FileDown, UserCircle, DollarSign } from "lucide-react";
-import { loadUserInfo, saveUserInfo, type UserInfo, getCurrencySymbol } from '@/lib/data-store';
+import { loadUserInfo, saveUserInfo, type UserInfo, getCurrencySymbol, clearAllUserData } from '@/lib/data-store';
 import { useCurrency } from '@/hooks/use-currency';
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { currencySymbol, currencyCode, updateCurrency: refreshCurrencyHook } = useCurrency(); // Get currency utilities
+  const { currencySymbol } = useCurrency(); 
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
-  const [userIncome, setUserIncome] = useState<number | string>(''); // Can be string from input
-  const [selectedCurrency, setSelectedCurrency] = useState('INR'); // Keep this for the Select component
+  const [userIncome, setUserIncome] = useState<number | string>('');
+  const [selectedCurrency, setSelectedCurrency] = useState('INR');
   const [enableCloudSync, setEnableCloudSync] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -39,6 +50,7 @@ export default function SettingsPage() {
     return false;
   });
   const [emailNotifications, setEmailNotifications] = useState(true);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const loadSettingsData = useCallback(() => {
     const userInfo = loadUserInfo();
@@ -46,7 +58,7 @@ export default function SettingsPage() {
       setUserName(userInfo.name);
       setUserEmail(userInfo.email);
       setSelectedCurrency(userInfo.currency || 'INR');
-      setUserIncome(userInfo.totalIncome ?? 0); // Default to 0 if not set
+      setUserIncome(userInfo.totalIncome ?? 0);
     }
   }, []);
   
@@ -65,7 +77,6 @@ export default function SettingsPage() {
         return;
     }
 
-    const currentUserInfo = loadUserInfo(); // Get current to preserve other potential settings
     const updatedUserInfo: UserInfo = { 
         name: userName, 
         email: userEmail,
@@ -74,16 +85,15 @@ export default function SettingsPage() {
     };
     saveUserInfo(updatedUserInfo);
     toast({ title: "Profile Updated", description: "Your profile information has been saved." });
-    window.dispatchEvent(new Event('storage')); // Trigger storage event for other components
+    window.dispatchEvent(new Event('storage')); 
   }, [userName, userEmail, selectedCurrency, userIncome, toast]);
 
   const handleCurrencyChange = (value: string) => {
     setSelectedCurrency(value);
-    // Autosave currency change for immediate effect
-    const currentUserInfo = loadUserInfo() || { name: '', email: '', totalIncome: 0 };
+    const currentUserInfo = loadUserInfo() || { name: userName, email: userEmail, totalIncome: typeof userIncome === 'string' ? parseFloat(userIncome) : userIncome || 0 };
     saveUserInfo({ ...currentUserInfo, currency: value });
     toast({ title: "Currency preference updated", description: `Currency set to ${value}. Save profile to confirm other changes.`});
-    window.dispatchEvent(new Event('storage')); // Trigger storage event for currency hook and other components
+    window.dispatchEvent(new Event('storage')); 
   };
 
 
@@ -92,8 +102,20 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = () => {
-    toast({ title: "Account Deletion", description: "Account deletion initiated (Placeholder).", variant: "destructive" });
+    setIsDeleteDialogOpen(true);
   };
+
+  const confirmActualDelete = () => {
+    clearAllUserData();
+    toast({
+      title: "Account Deleted",
+      description: "All your data has been successfully removed. The app will now reset.",
+      variant: "destructive",
+    });
+    setIsDeleteDialogOpen(false);
+    window.location.reload();
+  };
+
 
   const handleSync = (method: string) => {
     if (enableCloudSync) {
@@ -271,8 +293,32 @@ export default function SettingsPage() {
             </div>
             <Button onClick={handleChangePassword}>Change Password</Button>
             <div className="border-t pt-4 mt-4">
-                 <Button variant="destructive" onClick={handleDeleteAccount}>Delete Account</Button>
-                 <p className="text-xs text-muted-foreground mt-2">This action is irreversible (Placeholder).</p>
+                <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">Delete Account</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete all
+                        your data from this device. You will need to set up the app again.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={confirmActualDelete} 
+                        className={buttonVariants({ variant: "destructive" })}
+                      >
+                        Delete Account
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                 <p className="text-xs text-muted-foreground mt-2">
+                    This action is irreversible and will remove all data from this device.
+                 </p>
             </div>
           </CardContent>
         </Card>

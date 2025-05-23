@@ -13,7 +13,7 @@ export interface UserInfo {
   name: string;
   email: string;
   currency?: string;
-  totalIncome?: number; // Added totalIncome
+  totalIncome?: number;
 }
 
 // Helper to safely access localStorage
@@ -70,7 +70,6 @@ export const loadUserInfo = (): UserInfo | null => {
   const defaultUserInfo: UserInfo = { name: '', email: '', currency: 'INR', totalIncome: 0 };
   const userInfo = getLocalStorageItem<UserInfo | null>(USER_INFO_KEY, null);
   if (userInfo) {
-    // Ensure totalIncome has a default if it's missing from old stored data
     return { ...defaultUserInfo, ...userInfo, totalIncome: userInfo.totalIncome ?? 0 };
   }
   return null;
@@ -102,4 +101,14 @@ export const getCurrencySymbol = (currencyCode: string | undefined): string => {
 
 export const initializeLocalData = (): void => {
     // This function is a placeholder if needed for future sample data features.
+};
+
+export const clearAllUserData = (): void => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.localStorage.removeItem(EXPENSES_KEY);
+  window.localStorage.removeItem(BUDGETS_KEY);
+  window.localStorage.removeItem(USER_INFO_KEY);
+  window.localStorage.removeItem(SETUP_COMPLETE_KEY);
 };
