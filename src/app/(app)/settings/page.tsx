@@ -1,6 +1,6 @@
 
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,10 +20,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { UploadCloud, FileDown } from "lucide-react";
+import { UploadCloud, FileDown, UserCircle } from "lucide-react";
+import { loadUserInfo, saveUserInfo, type UserInfo } from '@/lib/data-store';
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const [enableCloudSync, setEnableCloudSync] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -33,8 +36,21 @@ export default function SettingsPage() {
   });
   const [emailNotifications, setEmailNotifications] = useState(true);
 
+  useEffect(() => {
+    const userInfo = loadUserInfo();
+    if (userInfo) {
+      setUserName(userInfo.name);
+      setUserEmail(userInfo.email);
+    }
+  }, []);
+
   const handleProfileSave = () => {
-    toast({ title: "Profile Updated", description: "Your profile information has been saved (Placeholder)." });
+    if (!userName.trim() || !userEmail.trim()) {
+      toast({ title: "Error", description: "Name and email cannot be empty.", variant: "destructive" });
+      return;
+    }
+    saveUserInfo({ name: userName, email: userEmail });
+    toast({ title: "Profile Updated", description: "Your profile information has been saved." });
   };
 
   const handleChangePassword = () => {
@@ -42,7 +58,6 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = () => {
-    // In a real app, this would trigger a confirmation dialog.
     toast({ title: "Account Deletion", description: "Account deletion initiated (Placeholder).", variant: "destructive" });
   };
 
@@ -61,18 +76,22 @@ export default function SettingsPage() {
     } else {
       document.documentElement.classList.remove('dark');
     }
-    localStorage.setItem('theme', checked ? 'dark' : 'light');
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('theme', checked ? 'dark' : 'light');
+    }
     toast({ title: "Theme Changed", description: `Dark mode ${checked ? 'enabled' : 'disabled'}.` });
   };
 
-  React.useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-      setDarkMode(true);
-    } else if (savedTheme === 'light') {
-      document.documentElement.classList.remove('dark');
-      setDarkMode(false);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+        setDarkMode(true);
+        } else if (savedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+        setDarkMode(false);
+        }
     }
   }, []);
 
@@ -87,17 +106,17 @@ export default function SettingsPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
+            <CardTitle className="flex items-center gap-2"><UserCircle className="h-6 w-6" /> Profile Information</CardTitle>
             <CardDescription>Update your personal details.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
-              <Input id="name" defaultValue="John Doe (Placeholder)" />
+              <Input id="name" value={userName} onChange={(e) => setUserName(e.target.value)} placeholder="Your Name" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" defaultValue="john.doe@example.com (Placeholder)" />
+              <Input id="email" type="email" value={userEmail} onChange={(e) => setUserEmail(e.target.value)} placeholder="your.email@example.com" />
             </div>
             <Button onClick={handleProfileSave}>Save Profile</Button>
           </CardContent>
@@ -158,7 +177,7 @@ export default function SettingsPage() {
               <div className="space-y-0.5">
                 <Label htmlFor="cloud-sync" className="text-base">Enable Cloud Sync</Label>
                 <p className="text-sm text-muted-foreground">
-                  Securely back up and sync your data across devices.
+                  Securely back up and sync your data across devices (Feature placeholder).
                 </p>
               </div>
               <Switch 
@@ -186,7 +205,7 @@ export default function SettingsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
             <p className="text-xs text-muted-foreground">
-                Your data is currently saved locally on this device. Enabling cloud sync will allow you to access it elsewhere after syncing.
+                Your data is currently saved locally on this device. Enabling cloud sync will allow you to access it elsewhere after syncing (once implemented).
             </p>
           </CardContent>
         </Card>
@@ -208,13 +227,10 @@ export default function SettingsPage() {
             <Button onClick={handleChangePassword}>Change Password</Button>
             <div className="border-t pt-4 mt-4">
                  <Button variant="destructive" onClick={handleDeleteAccount}>Delete Account</Button>
-                 <p className="text-xs text-muted-foreground mt-2">This action is irreversible.</p>
+                 <p className="text-xs text-muted-foreground mt-2">This action is irreversible (Placeholder).</p>
             </div>
           </CardContent>
         </Card>
-
     </div>
   );
 }
-
-    

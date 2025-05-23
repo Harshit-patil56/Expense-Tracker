@@ -1,31 +1,34 @@
 
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, ListChecks } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, ListChecks, UserCircle } from "lucide-react";
 import { OverviewCard } from "@/components/features/dashboard/overview-card";
 import { BudgetProgressCard } from "@/components/features/budgets/budget-progress-card";
 import { RecentTransactionsList } from "@/components/features/expenses/recent-transactions-list";
 import type { Expense, BudgetGoal } from "@/lib/constants";
-import { loadExpenses, loadBudgets } from '@/lib/data-store';
+import { loadExpenses, loadBudgets, loadUserInfo, type UserInfo } from '@/lib/data-store';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
 
-const incomePlaceholder = 250000; // Example income in INR, could be made configurable
+const incomePlaceholder = 250000; // Example income in INR, could be made configurable or part of user settings
 
 export default function DashboardPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<BudgetGoal[]>([]);
   const [totalSpent, setTotalSpent] = useState(0);
   const [netSavings, setNetSavings] = useState(0);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
   const refreshDashboardData = useCallback(() => {
     const loadedExpenses = loadExpenses();
     const loadedBudgets = loadBudgets();
+    const loadedUserInfo = loadUserInfo();
     
     setExpenses(loadedExpenses);
     setBudgets(loadedBudgets);
+    setUserInfo(loadedUserInfo);
 
     const currentTotalSpent = loadedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
     setTotalSpent(currentTotalSpent);
@@ -36,10 +39,9 @@ export default function DashboardPage() {
     refreshDashboardData();
   }, [refreshDashboardData]);
 
-  // Effect to re-calculate if expenses/budgets change from another part of the app
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'fiscalCompassExpenses' || event.key === 'fiscalCompassBudgets') {
+      if (event.key === 'fiscalCompassExpenses' || event.key === 'fiscalCompassBudgets' || event.key === 'fiscalCompassUserInfo') {
         refreshDashboardData();
       }
     };
@@ -52,7 +54,12 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {userInfo?.name ? `Welcome back, ${userInfo.name.split(' ')[0]}!` : "Dashboard"}
+          </h1>
+          {!userInfo?.name && <p className="text-muted-foreground">Your financial overview.</p>}
+        </div>
         <Link href="/expenses">
           <Button>Add Expense</Button>
         </Link>
@@ -112,7 +119,6 @@ export default function DashboardPage() {
         </div>
       </div>
       
-      {/* Placeholder for AI Insights or other promotional content */}
       <Card className="bg-gradient-to-r from-primary/10 via-accent/5 to-background">
         <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6">
           <Image src="https://placehold.co/300x200.png" alt="Financial Planning" width={300} height={200} className="rounded-lg shadow-md" data-ai-hint="finance planning" />
@@ -129,7 +135,6 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
-
     </div>
   );
 }
