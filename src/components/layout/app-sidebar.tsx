@@ -1,7 +1,8 @@
+
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, LayoutDashboard, ListChecks, Target, AreaChart, Sparkles, Settings } from "lucide-react";
+import { Wallet, LayoutDashboard, ListChecks, Target, AreaChart, Sparkles, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarHeader,
@@ -28,8 +29,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" variant="sidebar" side="left" className="border-r">
       <SidebarHeader className="p-4">
         <Link href="/" className="flex items-center gap-2 text-lg font-semibold">
-          <Compass className="h-7 w-7 text-primary" />
-          <span className="group-data-[collapsible=icon]:hidden">Fiscal Compass</span>
+          <Wallet className="h-7 w-7 text-primary" />
+          <span className="group-data-[collapsible=icon]:hidden">Expense Tracker</span>
         </Link>
       </SidebarHeader>
       <SidebarContent className="p-2">
@@ -72,3 +73,4 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+

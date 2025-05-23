@@ -1,3 +1,4 @@
+
 import { InsightsForm } from "@/components/features/ai-insights/insights-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
@@ -8,7 +9,7 @@ export default function AiInsightsPage() {
         <div className="text-center">
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">AI-Powered Financial Guidance</h1>
             <p className="mt-3 text-lg text-muted-foreground max-w-2xl mx-auto">
-            Let Fiscal Compass analyze your habits and goals to provide actionable budgeting tips, helping you navigate your financial journey with confidence.
+            Let Expense Tracker analyze your habits and goals to provide actionable budgeting tips, helping you navigate your financial journey with confidence.
             </p>
         </div>
 
@@ -58,3 +59,4 @@ export default function AiInsightsPage() {
     </div>
   );
 }
+

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Fiscal Compass',
+  title: 'Expense Tracker',
   description: 'Your personal budgeting and expense tracking companion.',
 };
 
@@ -43,3 +43,4 @@ export default function RootLayout({
     </html>
   );
 }
+
