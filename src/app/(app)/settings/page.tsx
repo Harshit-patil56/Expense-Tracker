@@ -13,12 +13,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { UploadCloud, FileDown } from "lucide-react";
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const [enableCloudSync, setEnableCloudSync] = useState(false);
-  const [darkMode, setDarkMode] = useState(false); // Assuming a theme context would handle this in a real app
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
   const [emailNotifications, setEmailNotifications] = useState(true);
 
   const handleProfileSave = () => {
@@ -34,9 +46,9 @@ export default function SettingsPage() {
     toast({ title: "Account Deletion", description: "Account deletion initiated (Placeholder).", variant: "destructive" });
   };
 
-  const handleSyncNow = () => {
+  const handleSync = (method: string) => {
     if (enableCloudSync) {
-      toast({ title: "Syncing Data...", description: "Your data is being synced with the cloud (Placeholder)." });
+      toast({ title: "Syncing Data...", description: `Your data is being synced with ${method} (Placeholder).` });
     } else {
       toast({ title: "Cloud Sync Disabled", description: "Please enable cloud sync first.", variant: "destructive"});
     }
@@ -44,15 +56,25 @@ export default function SettingsPage() {
 
   const toggleDarkMode = (checked: boolean) => {
     setDarkMode(checked);
-    // In a real app, this would likely call a function from a theme context
-    // to toggle 'dark' class on HTML element and save preference.
     if (checked) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
+    localStorage.setItem('theme', checked ? 'dark' : 'light');
     toast({ title: "Theme Changed", description: `Dark mode ${checked ? 'enabled' : 'disabled'}.` });
   };
+
+  React.useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+      setDarkMode(true);
+    } else if (savedTheme === 'light') {
+      document.documentElement.classList.remove('dark');
+      setDarkMode(false);
+    }
+  }, []);
 
 
   return (
@@ -136,7 +158,7 @@ export default function SettingsPage() {
               <div className="space-y-0.5">
                 <Label htmlFor="cloud-sync" className="text-base">Enable Cloud Sync</Label>
                 <p className="text-sm text-muted-foreground">
-                  Securely back up and sync your data across devices (Feature Placeholder).
+                  Securely back up and sync your data across devices.
                 </p>
               </div>
               <Switch 
@@ -146,9 +168,25 @@ export default function SettingsPage() {
                 aria-label="Toggle cloud sync" 
               />
             </div>
-            <Button onClick={handleSyncNow} disabled={!enableCloudSync}>Sync Now (Placeholder)</Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button disabled={!enableCloudSync} variant="outline">
+                  <UploadCloud className="mr-2 h-4 w-4" /> Sync Now
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => handleSync("Google Drive")}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4"><path d="M18.5 12.5L12 19l-6.5-6.5"></path><path d="M12 19V3"></path><path d="M21.5 12.5H17L12 3 7 12.5H2.5L12 22l9.5-9.5z"></path></svg>
+                  Sync with Google Drive (Placeholder)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSync("Local File")}>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Export to Local File (Placeholder)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <p className="text-xs text-muted-foreground">
-                Your data is currently saved locally on this device. Enabling cloud sync will allow you to access it elsewhere.
+                Your data is currently saved locally on this device. Enabling cloud sync will allow you to access it elsewhere after syncing.
             </p>
           </CardContent>
         </Card>
@@ -178,3 +216,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
