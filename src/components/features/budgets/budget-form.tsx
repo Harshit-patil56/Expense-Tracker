@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CATEGORIES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/hooks/use-currency";
 
 const budgetFormSchema = z.object({
   category: z.string().min(1, "Category is required."),
@@ -26,22 +27,22 @@ const budgetFormSchema = z.object({
 type BudgetFormValues = z.infer<typeof budgetFormSchema>;
 
 const defaultValues: Partial<BudgetFormValues> = {
-  goalAmount: 10000, // Default to a reasonable amount in INR
+  goalAmount: undefined, // Use undefined to show placeholder
 };
 
 export function BudgetForm({ onSubmitSuccess }: { onSubmitSuccess?: (data: BudgetFormValues) => void }) {
   const { toast } = useToast();
+  const { currencySymbol } = useCurrency();
   const form = useForm<BudgetFormValues>({
     resolver: zodResolver(budgetFormSchema),
     defaultValues,
   });
 
   function onSubmit(data: BudgetFormValues) {
-    // In a real app, you'd send this to a server
     console.log(data);
     toast({
       title: "Budget Goal Set",
-      description: `Budget for ${data.category} set to ₹${data.goalAmount.toFixed(2)}.`,
+      description: `Budget for ${data.category} set to ${currencySymbol}${data.goalAmount.toFixed(2)}.`,
     });
     form.reset();
     if (onSubmitSuccess) {
@@ -82,7 +83,7 @@ export function BudgetForm({ onSubmitSuccess }: { onSubmitSuccess?: (data: Budge
           name="goalAmount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Monthly Goal Amount</FormLabel>
+              <FormLabel>Monthly Goal Amount ({currencySymbol})</FormLabel>
               <FormControl>
                 <Input type="number" step="0.01" placeholder="e.g., 10000.00" {...field} />
               </FormControl>

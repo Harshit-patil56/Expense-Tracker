@@ -1,7 +1,7 @@
 
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, ListChecks, UserCircle } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, ListChecks } from "lucide-react";
 import { OverviewCard } from "@/components/features/dashboard/overview-card";
 import { BudgetProgressCard } from "@/components/features/budgets/budget-progress-card";
 import { RecentTransactionsList } from "@/components/features/expenses/recent-transactions-list";
@@ -11,8 +11,9 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
+import { useCurrency } from '@/hooks/use-currency';
 
-const incomePlaceholder = 250000; // Example income in INR, could be made configurable or part of user settings
+const incomePlaceholder = 250000; // Example income, could be made configurable
 
 export default function DashboardPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -20,6 +21,7 @@ export default function DashboardPage() {
   const [totalSpent, setTotalSpent] = useState(0);
   const [netSavings, setNetSavings] = useState(0);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const { currencySymbol } = useCurrency();
 
   const refreshDashboardData = useCallback(() => {
     const loadedExpenses = loadExpenses();
@@ -27,8 +29,19 @@ export default function DashboardPage() {
     const loadedUserInfo = loadUserInfo();
     
     setExpenses(loadedExpenses);
-    setBudgets(loadedBudgets);
     setUserInfo(loadedUserInfo);
+
+    // Recalculate spent amounts for budgets based on current expenses
+    const spentByCategory = new Map<string, number>();
+    loadedExpenses.forEach(exp => {
+        spentByCategory.set(exp.category, (spentByCategory.get(exp.category) || 0) + exp.amount);
+    });
+    const updatedBudgets = loadedBudgets.map(budget => ({
+        ...budget,
+        spentAmount: spentByCategory.get(budget.category) || 0,
+    }));
+    setBudgets(updatedBudgets);
+
 
     const currentTotalSpent = loadedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
     setTotalSpent(currentTotalSpent);
@@ -69,19 +82,19 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <OverviewCard
           title="Total Income"
-          value={`₹${incomePlaceholder.toFixed(2)}`}
+          value={`${currencySymbol}${incomePlaceholder.toFixed(2)}`}
           description="This month (placeholder)"
           icon={DollarSign}
         />
         <OverviewCard
           title="Total Spent"
-          value={`₹${totalSpent.toFixed(2)}`}
+          value={`${currencySymbol}${totalSpent.toFixed(2)}`}
           description={`${expenses.length} transactions`}
           icon={TrendingDown}
         />
         <OverviewCard
           title="Net Savings"
-          value={`₹${netSavings.toFixed(2)}`}
+          value={`${currencySymbol}${netSavings.toFixed(2)}`}
           description="Income - Expenses"
           icon={TrendingUp}
         />
@@ -102,7 +115,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {budgets.slice(0,3).map((budget) => (
-              <BudgetProgressCard key={budget.id} budget={budget} />
+              <BudgetProgressCard key={budget.id} budget={budget} onDelete={() => { /* Deletion handled on budgets page */}} />
             ))}
              {budgets.length > 3 && (
               <Link href="/budgets" className="block text-center mt-2">

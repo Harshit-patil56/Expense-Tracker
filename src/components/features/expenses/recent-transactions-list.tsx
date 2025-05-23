@@ -3,12 +3,14 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CategoryIcon } from "@/components/icons/category-icon";
 import type { Expense } from "@/lib/constants";
+import { useCurrency } from "@/hooks/use-currency";
 
 interface RecentTransactionsListProps {
   transactions: Expense[];
 }
 
 export function RecentTransactionsList({ transactions }: RecentTransactionsListProps) {
+  const { currencySymbol } = useCurrency();
   return (
     <Card>
       <CardHeader>
@@ -28,7 +30,7 @@ export function RecentTransactionsList({ transactions }: RecentTransactionsListP
               <p className="text-sm font-medium leading-none">{transaction.description}</p>
               <p className="text-xs text-muted-foreground">{transaction.category} - {transaction.date.toLocaleDateString()}</p>
             </div>
-            <div className="text-sm font-medium">-₹{transaction.amount.toFixed(2)}</div>
+            <div className="text-sm font-medium">-{currencySymbol}{transaction.amount.toFixed(2)}</div>
           </div>
         ))}
       </CardContent>

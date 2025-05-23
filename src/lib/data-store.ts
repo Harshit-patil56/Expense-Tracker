@@ -3,8 +3,6 @@
 'use client';
 
 import type { Expense, BudgetGoal } from './constants';
-// placeholderExpenses and placeholderBudgets are no longer used for default initialization for new users.
-// They can remain for reference or potential future "load sample data" features.
 
 const EXPENSES_KEY = 'fiscalCompassExpenses';
 const BUDGETS_KEY = 'fiscalCompassBudgets';
@@ -14,6 +12,7 @@ const SETUP_COMPLETE_KEY = 'fiscalCompassSetupComplete';
 export interface UserInfo {
   name: string;
   email: string;
+  currency?: string; // Added currency preference
 }
 
 // Helper to safely access localStorage
@@ -25,7 +24,6 @@ const getLocalStorageItem = <T>(key: string, defaultValue: T): T => {
     const item = window.localStorage.getItem(key);
     if (item === null) return defaultValue;
 
-    // Revive dates properly from ISO strings
     const parsed = JSON.parse(item, (k, v) => {
       if (k === 'date' && typeof v === 'string' && v.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)) {
         return new Date(v);
@@ -35,7 +33,7 @@ const getLocalStorageItem = <T>(key: string, defaultValue: T): T => {
     return parsed;
   } catch (error) {
     console.warn(`Error reading localStorage key "${key}":`, error);
-    window.localStorage.removeItem(key);
+    window.localStorage.removeItem(key); // Clear corrupted item
     return defaultValue;
   }
 };
@@ -52,7 +50,6 @@ const setLocalStorageItem = <T>(key: string, value: T): void => {
 };
 
 export const loadExpenses = (): Expense[] => {
-  // New users start with an empty list
   return getLocalStorageItem<Expense[]>(EXPENSES_KEY, []);
 };
 
@@ -61,7 +58,6 @@ export const saveExpenses = (expenses: Expense[]): void => {
 };
 
 export const loadBudgets = (): BudgetGoal[] => {
-  // New users start with an empty list
   return getLocalStorageItem<BudgetGoal[]>(BUDGETS_KEY, []);
 };
 
@@ -70,7 +66,12 @@ export const saveBudgets = (budgets: BudgetGoal[]): void => {
 };
 
 export const loadUserInfo = (): UserInfo | null => {
-  return getLocalStorageItem<UserInfo | null>(USER_INFO_KEY, null);
+  const defaultUserInfo = { name: '', email: '', currency: 'INR' };
+  const userInfo = getLocalStorageItem<UserInfo | null>(USER_INFO_KEY, null);
+  if (userInfo) {
+    return { ...defaultUserInfo, ...userInfo }; // Ensure currency has a default
+  }
+  return null;
 };
 
 export const saveUserInfo = (userInfo: UserInfo): void => {
@@ -85,16 +86,21 @@ export const markSetupAsComplete = (): void => {
   setLocalStorageItem(SETUP_COMPLETE_KEY, true);
 };
 
+export const getCurrencySymbol = (currencyCode: string | undefined): string => {
+    switch (currencyCode) {
+        case 'USD': return '$';
+        case 'EUR': return '€';
+        case 'GBP': return '£';
+        case 'CAD': return 'C$';
+        case 'INR':
+        default:
+            return '₹';
+    }
+};
+
 // This function is no longer needed for automatic placeholder initialization.
 // It could be repurposed if a "load sample data" feature is added.
 export const initializeLocalData = (): void => {
     // console.log("initializeLocalData called, but now only ensures keys exist if logic requires, doesn't populate by default for new users.");
-    // if (typeof window !== 'undefined') {
-    //     if (localStorage.getItem(EXPENSES_KEY) === null) {
-    //         saveExpenses([]); // Start with empty
-    //     }
-    //     if (localStorage.getItem(BUDGETS_KEY) === null) {
-    //         saveBudgets([]); // Start with empty
-    //     }
-    // }
 };
+

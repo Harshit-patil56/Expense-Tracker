@@ -1,12 +1,14 @@
+
 import type { BudgetGoal } from "@/lib/constants";
 import { BudgetProgressCard } from "./budget-progress-card";
 import Link from "next/link";
 
 interface BudgetListProps {
   budgets: BudgetGoal[];
+  onDeleteBudget: (budgetId: string) => void;
 }
 
-export function BudgetList({ budgets }: BudgetListProps) {
+export function BudgetList({ budgets, onDeleteBudget }: BudgetListProps) {
   if (budgets.length === 0) {
     return (
       <div className="text-center py-10">
@@ -21,7 +23,7 @@ export function BudgetList({ budgets }: BudgetListProps) {
   return (
     <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
       {budgets.map((budget) => (
-        <BudgetProgressCard key={budget.id} budget={budget} />
+        <BudgetProgressCard key={budget.id} budget={budget} onDelete={() => onDeleteBudget(budget.id)} />
       ))}
     </div>
   );

@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CATEGORIES } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/hooks/use-currency";
 
 const expenseFormSchema = z.object({
   date: z.date({
@@ -34,28 +35,27 @@ const expenseFormSchema = z.object({
 
 type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
 
-// This can be passed as a prop if needed for editing
 const defaultValues: Partial<ExpenseFormValues> = {
   date: new Date(),
   description: "",
-  amount: 0,
+  amount: undefined, // Use undefined for placeholder to show
 };
 
 export function ExpenseForm({ onSubmitSuccess }: { onSubmitSuccess?: (data: ExpenseFormValues) => void }) {
   const { toast } = useToast();
+  const { currencySymbol } = useCurrency();
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues,
   });
 
   function onSubmit(data: ExpenseFormValues) {
-    // In a real app, you'd send this to a server
     console.log(data);
     toast({
       title: "Expense Added",
-      description: `${data.description} for ₹${data.amount.toFixed(2)} successfully added.`,
+      description: `${data.description} for ${currencySymbol}${data.amount.toFixed(2)} successfully added.`,
     });
-    form.reset(); // Reset form after submission
+    form.reset(); 
     if (onSubmitSuccess) {
         onSubmitSuccess(data);
     }
@@ -151,7 +151,7 @@ export function ExpenseForm({ onSubmitSuccess }: { onSubmitSuccess?: (data: Expe
             name="amount"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Amount</FormLabel>
+                <FormLabel>Amount ({currencySymbol})</FormLabel>
                 <FormControl>
                     <Input type="number" step="0.01" placeholder="0.00" {...field} />
                 </FormControl>

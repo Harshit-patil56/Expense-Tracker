@@ -10,45 +10,42 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from '@/hooks/use-currency';
 
 export default function AnalyticsPage() {
   const { toast } = useToast();
+  const { currencySymbol } = useCurrency();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [topSpendingCategory, setTopSpendingCategory] = useState<{ name: string; amount: number } | null>(null);
   const [averageDailySpend, setAverageDailySpend] = useState<number>(0);
   const [mostFrequentExpenseType, setMostFrequentExpenseType] = useState<string | null>(null);
-  // Savings rate would require income, which is currently a placeholder or needs to be user-input
-  // For now, we'll omit dynamic savings rate calculation here.
 
   const refreshAnalyticsData = useCallback(() => {
     const loadedExpenses = loadExpenses();
     setExpenses(loadedExpenses);
 
     if (loadedExpenses.length > 0) {
-      // Top Spending Category
       const spendingByCategory: Record<string, number> = {};
       loadedExpenses.forEach(exp => {
         spendingByCategory[exp.category] = (spendingByCategory[exp.category] || 0) + exp.amount;
       });
-      const topCat = Object.entries(spendingByCategory).sort(([,a],[,b]) => b-a)[0];
-      if (topCat) {
-        setTopSpendingCategory({ name: topCat[0], amount: topCat[1] });
+      const topCatEntry = Object.entries(spendingByCategory).sort(([,a],[,b]) => b-a)[0];
+      if (topCatEntry) {
+        setTopSpendingCategory({ name: topCatEntry[0], amount: topCatEntry[1] });
       } else {
         setTopSpendingCategory(null);
       }
 
-      // Average Daily Spend
       const totalSpent = loadedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
       const uniqueDays = new Set(loadedExpenses.map(exp => exp.date.toDateString())).size;
       setAverageDailySpend(uniqueDays > 0 ? totalSpent / uniqueDays : 0);
       
-      // Most Frequent Expense Type (Category)
       const categoryCounts: Record<string, number> = {};
       loadedExpenses.forEach(exp => {
         categoryCounts[exp.category] = (categoryCounts[exp.category] || 0) + 1;
       });
-      const freqCat = Object.entries(categoryCounts).sort(([,a],[,b]) => b-a)[0];
-      setMostFrequentExpenseType(freqCat ? freqCat[0] : null);
+      const freqCatEntry = Object.entries(categoryCounts).sort(([,a],[,b]) => b-a)[0];
+      setMostFrequentExpenseType(freqCatEntry ? freqCatEntry[0] : null);
 
     } else {
       setTopSpendingCategory(null);
@@ -63,7 +60,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'fiscalCompassExpenses') {
+      if (event.key === 'fiscalCompassExpenses' || event.key === 'fiscalCompassUserInfo') { // UserInfo for currency changes
         refreshAnalyticsData();
       }
     };
@@ -105,14 +102,14 @@ export default function AnalyticsPage() {
                 <div>
                     <h3 className="font-semibold">Top Spending Category</h3>
                     {topSpendingCategory ? (
-                        <p className="text-primary text-xl">{topSpendingCategory.name} (₹{topSpendingCategory.amount.toFixed(2)})</p>
+                        <p className="text-primary text-xl">{topSpendingCategory.name} ({currencySymbol}{topSpendingCategory.amount.toFixed(2)})</p>
                     ) : (
                         <p className="text-muted-foreground text-xl">N/A</p>
                     )}
                 </div>
                 <div>
                     <h3 className="font-semibold">Average Daily Spend</h3>
-                    <p className="text-primary text-xl">₹{averageDailySpend.toFixed(2)}</p>
+                    <p className="text-primary text-xl">{currencySymbol}{averageDailySpend.toFixed(2)}</p>
                 </div>
                 <div>
                     <h3 className="font-semibold">Most Frequent Expense Category</h3>

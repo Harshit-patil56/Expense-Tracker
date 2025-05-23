@@ -53,6 +53,7 @@ export function UserSetupModal({ isOpen, onSetupComplete }: UserSetupModalProps)
     const userInfo: UserInfo = {
       name: data.name,
       email: data.email,
+      currency: 'INR', // Default currency for new users
     };
     saveUserInfo(userInfo);
     markSetupAsComplete();
@@ -61,8 +62,6 @@ export function UserSetupModal({ isOpen, onSetupComplete }: UserSetupModalProps)
       description: "Your information has been saved.",
     });
     onSetupComplete();
-    // Consider a full page reload if necessary to re-initialize other components
-    // window.location.reload(); 
   }
 
   return (

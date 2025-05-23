@@ -1,6 +1,6 @@
 
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,12 +21,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { UploadCloud, FileDown, UserCircle } from "lucide-react";
-import { loadUserInfo, saveUserInfo, type UserInfo } from '@/lib/data-store';
+import { loadUserInfo, saveUserInfo, type UserInfo, getCurrencySymbol } from '@/lib/data-store';
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  const [selectedCurrency, setSelectedCurrency] = useState('INR');
   const [enableCloudSync, setEnableCloudSync] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -41,17 +42,38 @@ export default function SettingsPage() {
     if (userInfo) {
       setUserName(userInfo.name);
       setUserEmail(userInfo.email);
+      setSelectedCurrency(userInfo.currency || 'INR');
     }
   }, []);
 
-  const handleProfileSave = () => {
+  const handleProfileSave = useCallback(() => {
     if (!userName.trim() || !userEmail.trim()) {
       toast({ title: "Error", description: "Name and email cannot be empty.", variant: "destructive" });
       return;
     }
-    saveUserInfo({ name: userName, email: userEmail });
+    const currentUserInfo = loadUserInfo();
+    const updatedUserInfo: UserInfo = { 
+        ...currentUserInfo, // Preserve other potential settings
+        name: userName, 
+        email: userEmail,
+        currency: selectedCurrency
+    };
+    saveUserInfo(updatedUserInfo);
     toast({ title: "Profile Updated", description: "Your profile information has been saved." });
+    // Force a reload to ensure currency symbol updates everywhere if it changed
+    // This is a simple way; a context/global state would be more elegant for live updates without reload
+    window.dispatchEvent(new Event('storage')); // Trigger storage event for other components
+  }, [userName, userEmail, selectedCurrency, toast]);
+
+  const handleCurrencyChange = (value: string) => {
+    setSelectedCurrency(value);
+    // Autosave currency change for immediate effect after profile save or next load
+    const currentUserInfo = loadUserInfo() || { name: '', email: '' };
+    saveUserInfo({ ...currentUserInfo, currency: value });
+     toast({ title: "Currency preference updated", description: `Currency set to ${value}. Save profile to confirm other changes.`});
+    window.dispatchEvent(new Event('storage')); // Trigger storage event for currency hook
   };
+
 
   const handleChangePassword = () => {
     toast({ title: "Password Changed", description: "Your password has been updated (Placeholder)." });
@@ -140,16 +162,16 @@ export default function SettingsPage() {
             
             <div className="space-y-2">
                 <Label htmlFor="currency">Default Currency</Label>
-                <Select defaultValue="INR">
+                <Select value={selectedCurrency} onValueChange={handleCurrencyChange}>
                     <SelectTrigger id="currency">
                         <SelectValue placeholder="Select currency" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="INR">INR - Indian Rupee</SelectItem>
-                        <SelectItem value="USD">USD - United States Dollar</SelectItem>
-                        <SelectItem value="EUR">EUR - Euro</SelectItem>
-                        <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                        <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
+                        <SelectItem value="INR">INR - Indian Rupee ({getCurrencySymbol('INR')})</SelectItem>
+                        <SelectItem value="USD">USD - United States Dollar ({getCurrencySymbol('USD')})</SelectItem>
+                        <SelectItem value="EUR">EUR - Euro ({getCurrencySymbol('EUR')})</SelectItem>
+                        <SelectItem value="GBP">GBP - British Pound ({getCurrencySymbol('GBP')})</SelectItem>
+                        <SelectItem value="CAD">CAD - Canadian Dollar ({getCurrencySymbol('CAD')})</SelectItem>
                     </SelectContent>
                 </Select>
             </div>

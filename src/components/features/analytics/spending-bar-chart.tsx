@@ -5,12 +5,14 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } fro
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ChartTooltipContent, ChartContainer } from "@/components/ui/chart"
 import type { Expense } from "@/lib/constants"
+import { useCurrency } from "@/hooks/use-currency"
 
 interface SpendingBarChartProps {
   expenses: Expense[]
 }
 
 export function SpendingBarChart({ expenses }: SpendingBarChartProps) {
+  const { currencySymbol } = useCurrency();
   const dataByCategory = expenses.reduce((acc, expense) => {
     const existing = acc.find(item => item.category === expense.category)
     if (existing) {
@@ -54,10 +56,13 @@ export function SpendingBarChart({ expenses }: SpendingBarChartProps) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={dataByCategory} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
               <XAxis dataKey="category" stroke="hsl(var(--foreground))" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="hsl(var(--foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value}`} />
-              <Tooltip cursor={{ fill: "hsl(var(--muted))" }} content={<ChartTooltipContent />} />
+              <YAxis stroke="hsl(var(--foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${currencySymbol}${value}`} />
+              <Tooltip 
+                cursor={{ fill: "hsl(var(--muted))" }} 
+                content={<ChartTooltipContent formatter={(value, name, props) => [`${currencySymbol}${Number(value).toFixed(2)}`, props.payload.category]} />} 
+              />
               <Legend />
-              <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} name="Total Spent" />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>

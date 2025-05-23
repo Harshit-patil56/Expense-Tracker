@@ -13,7 +13,7 @@ import type { Expense } from "@/lib/constants";
 import { CATEGORIES } from "@/lib/constants";
 import { CategoryIcon } from "@/components/icons/category-icon";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,12 +22,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useCurrency } from "@/hooks/use-currency";
 
 interface ExpenseTableProps {
   expenses: Expense[];
+  onDeleteExpense: (expenseId: string) => void;
 }
 
-export function ExpenseTable({ expenses }: ExpenseTableProps) {
+export function ExpenseTable({ expenses, onDeleteExpense }: ExpenseTableProps) {
+  const { currencySymbol } = useCurrency();
+
   if (expenses.length === 0) {
     return <p className="text-muted-foreground text-center py-8">No expenses recorded yet.</p>;
   }
@@ -59,7 +63,7 @@ export function ExpenseTable({ expenses }: ExpenseTableProps) {
                   {expense.category}
                 </Badge>
               </TableCell>
-              <TableCell className="text-right">₹{expense.amount.toFixed(2)}</TableCell>
+              <TableCell className="text-right">{currencySymbol}{expense.amount.toFixed(2)}</TableCell>
               <TableCell className="text-center">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -70,10 +74,16 @@ export function ExpenseTable({ expenses }: ExpenseTableProps) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => console.log(`Edit ${expense.id}`)}>Edit</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => console.log(`Duplicate ${expense.id}`)}>Duplicate</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => console.log(`Edit ${expense.id}`)} disabled>Edit (Soon)</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => console.log(`Duplicate ${expense.id}`)} disabled>Duplicate (Soon)</DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => console.log(`Delete ${expense.id}`)}>Delete</DropdownMenuItem>
+                    <DropdownMenuItem 
+                        className="text-destructive focus:text-destructive focus:bg-destructive/10" 
+                        onClick={() => onDeleteExpense(expense.id)}
+                    >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

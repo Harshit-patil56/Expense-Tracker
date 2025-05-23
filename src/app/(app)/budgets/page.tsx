@@ -6,6 +6,7 @@ import { BudgetList } from "@/components/features/budgets/budget-list";
 import type { BudgetGoal, Expense } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { loadBudgets, saveBudgets, loadExpenses } from '@/lib/data-store';
+import { useToast } from "@/hooks/use-toast";
 
 const calculateSpentAmounts = (budgets: BudgetGoal[], expenses: Expense[]): BudgetGoal[] => {
   const spentByCategory = new Map<string, number>();
@@ -21,12 +22,13 @@ const calculateSpentAmounts = (budgets: BudgetGoal[], expenses: Expense[]): Budg
 
 export default function BudgetsPage() {
   const [budgets, setBudgets] = useState<BudgetGoal[]>([]);
-  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
+  // allExpenses state is removed as it's not strictly needed with the current logic.
+  // We always load expenses when calculating.
+  const { toast } = useToast();
 
   const refreshBudgetsWithSpentAmounts = useCallback(() => {
     const currentBudgets = loadBudgets();
-    const currentExpenses = loadExpenses(); // Load expenses for calculation
-    setAllExpenses(currentExpenses); // Keep a copy for other potential uses
+    const currentExpenses = loadExpenses();
     setBudgets(calculateSpentAmounts(currentBudgets, currentExpenses));
   }, []);
 
@@ -34,8 +36,6 @@ export default function BudgetsPage() {
     refreshBudgetsWithSpentAmounts();
   }, [refreshBudgetsWithSpentAmounts]);
 
-  // Effect to re-calculate spent amounts if expenses change from another part of the app
-  // This uses a simple localStorage event listener as a basic cross-tab/component sync trigger
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === 'fiscalCompassExpenses' || event.key === 'fiscalCompassBudgets') {
@@ -53,14 +53,27 @@ export default function BudgetsPage() {
     const tempNewBudget: BudgetGoal = {
       ...newBudgetData,
       id: String(Date.now()),
-      spentAmount: 0, // Will be recalculated
+      spentAmount: 0, 
     };
     
     const currentBudgets = loadBudgets();
     const updatedBudgetsList = [tempNewBudget, ...currentBudgets.filter(b => b.category !== tempNewBudget.category)];
     saveBudgets(updatedBudgetsList);
-    refreshBudgetsWithSpentAmounts(); // Recalculate with potentially new expenses too
+    refreshBudgetsWithSpentAmounts(); 
   };
+
+  const handleDeleteBudget = useCallback((budgetId: string) => {
+    setBudgets(prevBudgets => {
+        const currentBudgets = loadBudgets(); // Ensure we are working with the latest from storage
+        const updatedBudgets = currentBudgets.filter(b => b.id !== budgetId);
+        saveBudgets(updatedBudgets);
+        toast({ title: "Budget Deleted", description: "The budget goal has been removed." });
+        // Recalculate spent amounts for the remaining budgets
+        const currentExpenses = loadExpenses();
+        return calculateSpentAmounts(updatedBudgets, currentExpenses);
+    });
+  }, [toast]);
+
 
   return (
     <div className="space-y-8">
@@ -85,7 +98,7 @@ export default function BudgetsPage() {
             <CardDescription>Monitor your progress towards your financial targets.</CardDescription>
         </CardHeader>
         <CardContent>
-            <BudgetList budgets={budgets} />
+            <BudgetList budgets={budgets} onDeleteBudget={handleDeleteBudget} />
         </CardContent>
       </Card>
     </div>

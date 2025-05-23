@@ -1,14 +1,16 @@
 
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ExpenseForm } from "@/components/features/expenses/expense-form";
 import { ExpenseTable } from "@/components/features/expenses/expense-table";
 import type { Expense } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { loadExpenses, saveExpenses } from '@/lib/data-store';
+import { useToast } from "@/hooks/use-toast";
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     setExpenses(loadExpenses());
@@ -22,18 +24,20 @@ export default function ExpensesPage() {
       };
       const updatedExpenses = [newExpense, ...prevExpenses];
       saveExpenses(updatedExpenses);
+      // No need to call refreshBudgetsWithSpentAmounts here, other pages listen to storage
       return updatedExpenses;
     });
   };
 
-  // Placeholder for delete/edit functionality if added to ExpenseTable
-  // const handleDeleteExpense = (expenseId: string) => {
-  //   setExpenses(prevExpenses => {
-  //     const updatedExpenses = prevExpenses.filter(exp => exp.id !== expenseId);
-  //     saveExpenses(updatedExpenses);
-  //     return updatedExpenses;
-  //   });
-  // };
+  const handleDeleteExpense = useCallback((expenseId: string) => {
+    setExpenses(prevExpenses => {
+      const updatedExpenses = prevExpenses.filter(exp => exp.id !== expenseId);
+      saveExpenses(updatedExpenses);
+      toast({ title: "Expense Deleted", description: "The expense has been removed." });
+      // No need to call refreshBudgetsWithSpentAmounts here, other pages listen to storage
+      return updatedExpenses;
+    });
+  }, [toast]);
 
   return (
     <div className="space-y-8">
@@ -58,7 +62,7 @@ export default function ExpensesPage() {
           <CardDescription>A list of all your recorded expenses.</CardDescription>
         </CardHeader>
         <CardContent>
-          <ExpenseTable expenses={expenses} />
+          <ExpenseTable expenses={expenses} onDeleteExpense={handleDeleteExpense} />
         </CardContent>
       </Card>
     </div>
