@@ -1,3 +1,4 @@
+
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -52,7 +53,7 @@ export function ExpenseForm({ onSubmitSuccess }: { onSubmitSuccess?: (data: Expe
     console.log(data);
     toast({
       title: "Expense Added",
-      description: `${data.description} for $${data.amount.toFixed(2)} successfully added.`,
+      description: `${data.description} for ₹${data.amount.toFixed(2)} successfully added.`,
     });
     form.reset(); // Reset form after submission
     if (onSubmitSuccess) {

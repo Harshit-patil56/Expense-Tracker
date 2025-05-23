@@ -1,3 +1,4 @@
+
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CategoryIcon } from "@/components/icons/category-icon";
@@ -27,7 +28,7 @@ export function RecentTransactionsList({ transactions }: RecentTransactionsListP
               <p className="text-sm font-medium leading-none">{transaction.description}</p>
               <p className="text-xs text-muted-foreground">{transaction.category} - {transaction.date.toLocaleDateString()}</p>
             </div>
-            <div className="text-sm font-medium">-${transaction.amount.toFixed(2)}</div>
+            <div className="text-sm font-medium">-₹{transaction.amount.toFixed(2)}</div>
           </div>
         ))}
       </CardContent>

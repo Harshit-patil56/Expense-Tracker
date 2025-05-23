@@ -1,3 +1,4 @@
+
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { BudgetGoal } from "@/lib/constants";
@@ -24,13 +25,13 @@ export function BudgetProgressCard({ budget }: BudgetProgressCardProps) {
             </span>
         </div>
         <CardDescription>
-          Spent ${budget.spentAmount.toFixed(2)} of ${budget.goalAmount.toFixed(2)}
+          Spent ₹{budget.spentAmount.toFixed(2)} of ₹{budget.goalAmount.toFixed(2)}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Progress value={progress} aria-label={`${budget.category} budget progress`} className={progress > 100 ? "[&>div]:bg-destructive" : ""} />
         <p className="text-xs text-muted-foreground mt-2">
-          {remaining >= 0 ? `$${remaining.toFixed(2)} remaining` : `$${Math.abs(remaining).toFixed(2)} over budget`}
+          {remaining >= 0 ? `₹${remaining.toFixed(2)} remaining` : `₹${Math.abs(remaining).toFixed(2)} over budget`}
         </p>
       </CardContent>
     </Card>

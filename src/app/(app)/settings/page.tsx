@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,11 +57,12 @@ export default function SettingsPage() {
             
             <div className="space-y-2">
                 <Label htmlFor="currency">Default Currency</Label>
-                <Select defaultValue="USD">
+                <Select defaultValue="INR">
                     <SelectTrigger id="currency">
                         <SelectValue placeholder="Select currency" />
                     </SelectTrigger>
                     <SelectContent>
+                        <SelectItem value="INR">INR - Indian Rupee</SelectItem>
                         <SelectItem value="USD">USD - United States Dollar</SelectItem>
                         <SelectItem value="EUR">EUR - Euro</SelectItem>
                         <SelectItem value="GBP">GBP - British Pound</SelectItem>

@@ -1,3 +1,4 @@
+
 import {
   Table,
   TableBody,
@@ -58,7 +59,7 @@ export function ExpenseTable({ expenses }: ExpenseTableProps) {
                   {expense.category}
                 </Badge>
               </TableCell>
-              <TableCell className="text-right">${expense.amount.toFixed(2)}</TableCell>
+              <TableCell className="text-right">₹{expense.amount.toFixed(2)}</TableCell>
               <TableCell className="text-center">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

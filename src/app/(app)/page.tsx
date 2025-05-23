@@ -1,3 +1,4 @@
+
 import { DollarSign, TrendingUp, TrendingDown, ListChecks } from "lucide-react";
 import { OverviewCard } from "@/components/features/dashboard/overview-card";
 import { BudgetProgressCard } from "@/components/features/budgets/budget-progress-card";
@@ -11,7 +12,7 @@ import Image from "next/image";
 // Calculate some overview stats from placeholder data
 const totalSpent = placeholderExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 const totalBudgeted = placeholderBudgets.reduce((sum, bud) => sum + bud.goalAmount, 0);
-const incomePlaceholder = 3000; // Example income
+const incomePlaceholder = 250000; // Example income in INR
 
 export default function DashboardPage() {
   return (
@@ -27,19 +28,19 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <OverviewCard
           title="Total Income"
-          value={`$${incomePlaceholder.toFixed(2)}`}
+          value={`₹${incomePlaceholder.toFixed(2)}`}
           description="This month (placeholder)"
-          icon={DollarSign}
+          icon={DollarSign} // Icon can remain generic
         />
         <OverviewCard
           title="Total Spent"
-          value={`$${totalSpent.toFixed(2)}`}
+          value={`₹${totalSpent.toFixed(2)}`}
           description={`${placeholderExpenses.length} transactions`}
           icon={TrendingDown}
         />
         <OverviewCard
           title="Net Savings"
-          value={`$${(incomePlaceholder - totalSpent).toFixed(2)}`}
+          value={`₹${(incomePlaceholder - totalSpent).toFixed(2)}`}
           description="Income - Expenses"
           icon={TrendingUp}
         />

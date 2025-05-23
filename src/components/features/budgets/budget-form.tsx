@@ -1,3 +1,4 @@
+
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -25,7 +26,7 @@ const budgetFormSchema = z.object({
 type BudgetFormValues = z.infer<typeof budgetFormSchema>;
 
 const defaultValues: Partial<BudgetFormValues> = {
-  goalAmount: 100, // Default to a reasonable amount
+  goalAmount: 10000, // Default to a reasonable amount in INR
 };
 
 export function BudgetForm({ onSubmitSuccess }: { onSubmitSuccess?: (data: BudgetFormValues) => void }) {
@@ -40,7 +41,7 @@ export function BudgetForm({ onSubmitSuccess }: { onSubmitSuccess?: (data: Budge
     console.log(data);
     toast({
       title: "Budget Goal Set",
-      description: `Budget for ${data.category} set to $${data.goalAmount.toFixed(2)}.`,
+      description: `Budget for ${data.category} set to ₹${data.goalAmount.toFixed(2)}.`,
     });
     form.reset();
     if (onSubmitSuccess) {
@@ -83,7 +84,7 @@ export function BudgetForm({ onSubmitSuccess }: { onSubmitSuccess?: (data: Budge
             <FormItem>
               <FormLabel>Monthly Goal Amount</FormLabel>
               <FormControl>
-                <Input type="number" step="0.01" placeholder="e.g., 500.00" {...field} />
+                <Input type="number" step="0.01" placeholder="e.g., 10000.00" {...field} />
               </FormControl>
               <FormDescription>
                 Set your target spending limit for this category.

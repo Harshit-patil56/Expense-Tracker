@@ -1,3 +1,4 @@
+
 "use client";
 
 import { SpendingBarChart } from "@/components/features/analytics/spending-bar-chart";
@@ -45,12 +46,12 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <h3 className="font-semibold">Top Spending Category</h3>
-                    <p className="text-primary text-xl">Food ($XXX.XX)</p> 
+                    <p className="text-primary text-xl">Food (₹XXX.XX)</p> 
                     {/* TODO: Calculate this dynamically */}
                 </div>
                 <div>
                     <h3 className="font-semibold">Average Daily Spend</h3>
-                    <p className="text-primary text-xl">$XX.XX</p>
+                    <p className="text-primary text-xl">₹XX.XX</p>
                     {/* TODO: Calculate this dynamically */}
                 </div>
                 <div>
