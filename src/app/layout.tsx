@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Expense Tracker',
+  title: 'Expense Tracker by Harshit Patil',
   description: 'Your personal budgeting and expense tracking companion.',
 };
 
@@ -43,4 +43,3 @@ export default function RootLayout({
     </html>
   );
 }
-
