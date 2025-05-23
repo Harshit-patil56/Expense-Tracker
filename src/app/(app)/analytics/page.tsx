@@ -1,22 +1,21 @@
+"use client";
+
 import { SpendingBarChart } from "@/components/features/analytics/spending-bar-chart";
 import { SpendingPieChart } from "@/components/features/analytics/spending-pie-chart";
 import { placeholderExpenses } from "@/lib/constants";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import { useToast } from "@/hooks/use-toast"; // client hook, so page needs to be client
-
-// This page needs to be a client component if we use useToast directly here.
-// Alternatively, the button action could be a server action.
-// For simplicity, let's keep it as a server component and the button won't actually do anything.
+// import { useToast } from "@/hooks/use-toast"; // Can be uncommented if needed now
 
 export default function AnalyticsPage() {
-  // const { toast } = useToast(); // This would make it a client component.
+  // const { toast } = useToast(); // This can be used now that it's a client component
   
   const handleExportData = () => {
-    // This would be a client-side function, or trigger a server action for export.
-    // toast({ title: "Export Data", description: "This feature is coming soon!" });
+    // This is a client-side function.
     alert("Data export feature is coming soon!"); // Simple placeholder
+    // If useToast was desired:
+    // toast({ title: "Export Data", description: "This feature is coming soon!" });
   };
 
   return (
@@ -26,7 +25,7 @@ export default function AnalyticsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
             <p className="text-muted-foreground">Visualize your spending habits and financial patterns.</p>
         </div>
-        <Button variant="outline" onClick={handleExportData}> {/* onClick requires client component or server action */}
+        <Button variant="outline" onClick={handleExportData}>
             <Download className="mr-2 h-4 w-4" />
             Export Data
         </Button>
