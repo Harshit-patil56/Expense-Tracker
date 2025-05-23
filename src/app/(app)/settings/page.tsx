@@ -54,19 +54,20 @@ export default function SettingsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const loadSettingsData = useCallback(() => {
+    reinitializeActiveUserPrefix(); // Ensure the latest active user prefix is used
     const userInfo = loadUserInfo();
     if (userInfo) {
       setUserName(userInfo.name);
       setUserEmail(userInfo.email);
-      setSelectedCurrency(userInfo.currency); // currency is now required in UserInfo
-      setUserIncome(userInfo.totalIncome); // totalIncome is now required
+      setSelectedCurrency(userInfo.currency); 
+      setUserIncome(userInfo.totalIncome); 
     } else {
       // This case should ideally not happen if AppInitializer forces setup
       // For safety, set to defaults or handle as an error
       setUserName('');
       setUserEmail('');
-      setSelectedCurrency('INR');
-      setUserIncome(0);
+      setSelectedCurrency('INR'); // Match default in UserSetupModal
+      setUserIncome(0); // Match default in UserSetupModal
     }
   }, []);
   
@@ -77,10 +78,8 @@ export default function SettingsPage() {
   // Listen for storage changes to reflect updates from other tabs/components
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      // Check for ACTIVE_USER_ID_KEY or specific user info key change
       if (event.key === 'fiscalCompassActiveUserId' || (event.key && event.key.endsWith('fiscalCompassUserInfo'))) {
-        reinitializeActiveUserPrefix(); // Ensure data_store uses the latest active user
-        loadSettingsData();
+        loadSettingsData(); // This will also call reinitializeActiveUserPrefix
       }
     };
     window.addEventListener('storage', handleStorageChange);
@@ -95,7 +94,6 @@ export default function SettingsPage() {
       toast({ title: "Error", description: "Name and email cannot be empty.", variant: "destructive" });
       return;
     }
-    // Email validation (simple)
     if (!/\S+@\S+\.\S+/.test(userEmail)) {
         toast({ title: "Error", description: "Please enter a valid email address.", variant: "destructive" });
         return;
@@ -107,13 +105,16 @@ export default function SettingsPage() {
         return;
     }
 
-    const currentUserInfo = loadUserInfo();
+    const currentUserInfo = loadUserInfo(); // Get current user info to check against fixed fields
+    
+    // Check if name or email (fixed fields) were attempted to be changed
+    // This check assumes userName and userEmail state reflect the input fields
     if (currentUserInfo && (currentUserInfo.name !== userName || currentUserInfo.email !== userEmail)) {
         toast({ 
             title: "Profile Change Not Supported", 
-            description: "Changing name or email after initial setup is not supported in this version. This could de-link your current data. Please delete account and re-setup if you need to change these.",
+            description: "Changing name or email after initial setup is not supported for the current profile. This could de-link your data. To use a different name/email, please delete this profile and create a new one.",
             variant: "destructive",
-            duration: 7000,
+            duration: 8000,
         });
         // Revert UI to stored values if name/email change was attempted
         setUserName(currentUserInfo.name);
@@ -121,28 +122,26 @@ export default function SettingsPage() {
         return;
     }
 
-
     const updatedUserInfo: UserInfo = { 
-        name: userName, 
-        email: userEmail, // These should match existing if user is already set up
+        // Use the name and email from currentUserInfo if available, or from state (which should match fixed fields)
+        name: currentUserInfo?.name || userName, 
+        email: currentUserInfo?.email || userEmail, 
         currency: selectedCurrency,
         totalIncome: incomeValue,
     };
-    saveUserInfo(updatedUserInfo); // saveUserInfo now handles active user key and user-specific key
+    saveUserInfo(updatedUserInfo); 
     toast({ title: "Settings Updated", description: "Your preferences have been saved." });
-    // No need to manually dispatch 'storage' event, saveUserInfo does it now
   }, [userName, userEmail, selectedCurrency, userIncome, toast]);
 
   const handleCurrencyChange = (value: string) => {
     setSelectedCurrency(value);
-    // Save immediately when currency changes, as it's a primary preference
     const currentUserInfo = loadUserInfo();
     if (currentUserInfo) {
         const incomeValue = typeof userIncome === 'string' ? parseFloat(userIncome) : userIncome;
          saveUserInfo({ 
             ...currentUserInfo, 
             currency: value,
-            totalIncome: !isNaN(incomeValue) ? incomeValue : currentUserInfo.totalIncome, // Persist current income
+            totalIncome: !isNaN(incomeValue) && incomeValue >= 0 ? incomeValue : currentUserInfo.totalIncome,
         });
         toast({ title: "Currency preference updated", description: `Currency set to ${value}.`});
     }
@@ -154,14 +153,14 @@ export default function SettingsPage() {
   };
 
   const confirmActualDelete = () => {
-    clearAllUserData(); // This now clears current active user's data and the active user key
+    clearAllUserData(); 
     toast({
-      title: "Account Deleted",
+      title: "Profile Deleted",
       description: "All your data for this profile has been successfully removed. The app will now reset.",
       variant: "destructive",
     });
     setIsDeleteDialogOpen(false);
-    window.location.reload(); // Reload to go back to AppInitializer and setup modal
+    window.location.reload(); 
   };
 
 
@@ -181,12 +180,12 @@ export default function SettingsPage() {
       document.documentElement.classList.remove('dark');
     }
     if (typeof window !== 'undefined') {
-        localStorage.setItem('theme', checked ? 'dark' : 'light'); // Theme is a global preference, not user-specific
+        localStorage.setItem('theme', checked ? 'dark' : 'light');
     }
     toast({ title: "Theme Changed", description: `Dark mode ${checked ? 'enabled' : 'disabled'}.` });
   };
 
-  useEffect(() => { // For theme persistence
+  useEffect(() => { 
     if (typeof window !== 'undefined') {
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
@@ -211,7 +210,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><UserCircle className="h-6 w-6" /> Profile Information</CardTitle>
-            <CardDescription>Update your personal details and financial settings. Name and email are fixed after initial setup.</CardDescription>
+            <CardDescription>Update your personal details and financial settings. Name and email are fixed after initial setup for the current profile.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
